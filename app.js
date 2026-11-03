@@ -436,7 +436,8 @@ function startStars(cv){
 }
 function tapSlot(i){
   const pk = R.picked[i]; if (!pk || R.stage === "pick") return;
-  if (!R.flipped.has(i)) flip(i); else showCard(pk.id, pk.r, positions(R)[i]);
+  if (!R.flipped.has(i)){ flip(i); setTimeout(() => { if (R && R.picked[i]) viewer(spreadList(), i); }, 850); }
+  else viewer(spreadList(), i);
 }
 function flip(i){
   if (R.flipped.has(i)) return;
@@ -569,7 +570,7 @@ function bindResults(el){
   };
   document.getElementById("again").onclick = () => start(R.key, R.v);
   document.getElementById("homeb").onclick = () => R.fromHistory ? history() : home();
-  el.querySelectorAll(".it").forEach(x => x.onclick = () => { const p = R.picked[+x.dataset.i]; showCard(p.id, p.r, positions(R)[+x.dataset.i]); });
+  el.querySelectorAll(".it").forEach(x => x.onclick = () => viewer(spreadList(), +x.dataset.i));
   el.querySelectorAll("[data-card]").forEach(x => x.onclick = () => showCard(x.dataset.card, false, null));
   let mt; document.getElementById("memo").oninput = e => { R.memo = e.target.value; clearTimeout(mt); mt = setTimeout(saveMemo, 400); };
 }
@@ -675,35 +676,65 @@ ${lines.join("\n")}
 무서운 카드(죽음, 탑 등)는 손님이 오해하지 않도록 상징적 의미를 먼저 설명해 주세요.`;
 }
 
-/* ---------- card detail ---------- */
-function showCard(id, rev, pos){
-  const c = byId[id];
-  const meta = c.arcana === "major"
-    ? `<span>메이저 ${c.roman}</span><span>원소 ${ELEMENTS[c.el].ko}</span><span>점성 ${c.astro}</span>`
-    : `<span>${SUITS[c.suit].ko} · ${ELEMENTS[c.el].ko}</span><span>${c.court ? RANKS[c.number - 1][0] : "숫자 " + c.number}: ${RANK_MEAN[c.number - 1]}</span>`;
-  const m = document.createElement("div"); m.className = "modal";
-  m.innerHTML = `<div class="mbox" role="dialog" aria-label="${c.name}"><button class="big${rev ? " rev" : ""}" id="bigc" aria-label="크게 보기">${art(id)}</button>
-    <div class="zoomh">그림을 누르면 크게 볼 수 있습니다</div>
-    <h4>${c.name}</h4><div class="en">${c.en}${pos ? " · " + (rev ? "역방향" : "정방향") : ""}</div>
-    <div class="meta">${meta}</div>
-    ${CALM[id] ? `<div class="blk calmb"><i>안심하세요</i>${CALM[id]}</div>` : ""}
-    ${pos ? `<div class="blk"><i>위치 — ${esc(pos[0])}</i>${esc(pos[1])}</div>` : ""}
-    <div class="blk"><i>그림의 상징</i>${c.d}</div>
-    <div class="blk${pos && !rev ? " on" : ""}"><i>정방향 · ${c.up}</i>${c.u}</div>
-    <div class="blk${pos && rev ? " on" : ""}"><i>역방향 · ${c.rev}</i>${c.r}</div>
-    <div class="blk"><i>연애</i>정: ${c.l}<br>역: ${dot(c.lr)}</div>
-    <div class="blk"><i>일 · 재물</i>정: ${c.w}<br>역: ${dot(c.wr)}</div>
-    <div class="blk"><i>그림자 (걸림돌 자리에서)</i>${dot(c.sh)}</div>
-    <div class="blk"><i>조언</i>${c.a}</div>
-    <div class="blk"><i>시기</i>${timing(c, false)}</div>
-    <button class="cta ghost" id="mclose" style="margin-top:14px">닫기</button></div>`;
-  m.onclick = e => { if (e.target === m || e.target.id === "mclose") m.remove(); };
-  m.querySelector("#bigc").onclick = () => {
-    const f = document.createElement("div"); f.className = "full";
-    f.innerHTML = `<div class="fc${rev ? " rev" : ""}">${art(id)}</div><p>${c.name}${rev ? " · 역방향" : ""} — 화면을 누르면 닫힙니다</p>`;
-    f.onclick = () => f.remove(); document.body.appendChild(f);
+/* ---------- card viewer (거의 전체 화면, 좌우로 넘기며 읽기) ---------- */
+const showCard = (id, rev, pos) => viewer([{id, r:rev, pos}], 0);
+function spreadList(){
+  const A = analyze();
+  return A.C.map(x => ({id:x.c.id, r:x.r, pos:x.pos, badge:badge(R, x.i), x, dom:A.dom}));
+}
+function viewer(list, idx){
+  const old = document.querySelector(".viewer"); if (old) old.remove();
+  const v = document.createElement("div"); v.className = "viewer"; v.setAttribute("role", "dialog");
+  document.body.appendChild(v); document.body.style.overflow = "hidden";
+  const close = () => { v.remove(); document.body.style.overflow = ""; document.removeEventListener("keydown", key); };
+  const key = e => { if (e.key === "Escape") close(); else if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1); };
+  document.addEventListener("keydown", key);
+  const go = d => { const n = idx + d; if (n < 0 || n >= list.length) return; idx = n; draw(d); };
+  const draw = dir => {
+    const it = list[idx], c = byId[it.id], rev = it.r, pos = it.pos, x = it.x;
+    const meta = c.arcana === "major"
+      ? `<span>메이저 ${c.roman}</span><span>원소 ${ELEMENTS[c.el].ko}</span><span>점성 ${c.astro}</span>`
+      : `<span>${SUITS[c.suit].ko} · ${ELEMENTS[c.el].ko}</span><span>${c.court ? RANKS[c.number - 1][0] : "숫자 " + c.number}: ${RANK_MEAN[c.number - 1]}</span>`;
+    let reading = "";
+    if (x){
+      const d = domText(x, it.dom);
+      reading = `<div class="blk on"><i>이 자리에서의 해석${x.t === "ch" ? " · 걸림돌" : x.t === "hf" ? " · 희망과 두려움" : ""}</i>${mainText(x)}${d ? `<br><span class="sub">${it.dom === "love" ? "연애" : "일·재물"}: ${d}</span>` : ""}</div>`;
+    }
+    v.innerHTML = `<div class="vtop"><span class="vc">${list.length > 1 ? `${idx + 1} / ${list.length}` : ""}</span>
+        <span class="vp">${pos ? `${it.badge ? it.badge + ". " : ""}${esc(pos[0])}` : esc(c.name)}</span><button class="vx" aria-label="닫기">✕</button></div>
+      <div class="vscroll">
+        <button class="vcard${rev ? " rev" : ""}${dir ? (dir > 0 ? " in-r" : " in-l") : ""}" aria-label="그림만 크게 보기">${art(c.id)}<img src="hi/${c.id}.jpg" alt="" onload="this.classList.add('ok')"></button>
+        <div class="vname">${c.name}${pos ? `<span class="tag ${rev ? "rv" : "up"}">${rev ? "역방향" : "정방향"}</span>` : ""}</div>
+        <div class="ven">${c.en}</div>
+        <div class="vkw">${rev ? c.rev : c.up}</div>
+        <div class="vbody">
+          ${CALM[c.id] ? `<div class="blk calmb"><i>안심하세요</i>${CALM[c.id]}</div>` : ""}
+          ${pos ? `<div class="blk"><i>위치 — ${esc(pos[0])}</i>${esc(pos[1])}</div>` : ""}
+          ${reading}
+          <div class="blk"><i>그림의 상징</i>${c.d}</div>
+          <div class="blk${pos && !rev ? " on" : ""}"><i>정방향 · ${c.up}</i>${c.u}</div>
+          <div class="blk${pos && rev ? " on" : ""}"><i>역방향 · ${c.rev}</i>${c.r}</div>
+          <div class="blk"><i>연애</i>정: ${c.l}<br>역: ${dot(c.lr)}</div>
+          <div class="blk"><i>일 · 재물</i>정: ${c.w}<br>역: ${dot(c.wr)}</div>
+          <div class="blk"><i>그림자 (걸림돌 자리에서)</i>${dot(c.sh)}</div>
+          <div class="blk"><i>조언</i>${c.a}</div>
+          <div class="blk"><i>시기</i>${timing(c, rev)}</div>
+          <div class="meta">${meta}</div>
+        </div>
+      </div>
+      ${list.length > 1 ? `<div class="vnav"><button class="vb" data-d="-1"${idx === 0 ? " disabled" : ""}>‹ 이전 카드</button><button class="vb" data-d="1"${idx === list.length - 1 ? " disabled" : ""}>다음 카드 ›</button></div>` : ""}`;
+    v.querySelector(".vx").onclick = close;
+    v.querySelectorAll(".vb").forEach(b => b.onclick = () => go(+b.dataset.d));
+    const card = v.querySelector(".vcard");
+    card.onclick = () => v.classList.toggle("solo");
+    let sx = null, sy = 0;
+    card.onpointerdown = e => { sx = e.clientX; sy = e.clientY; };
+    card.onpointerup = e => { if (sx === null) return; const dx = e.clientX - sx, dy = Math.abs(e.clientY - sy); sx = null;
+      if (Math.abs(dx) > 50 && dy < 60){ e.preventDefault(); card.onclick = null; setTimeout(() => go(dx < 0 ? 1 : -1), 0); } };
+    v.querySelector(".vscroll").scrollTop = 0;
+    [idx - 1, idx + 1].forEach(j => { if (list[j]) (new Image()).src = `hi/${list[j].id}.jpg`; });
   };
-  document.body.appendChild(m);
+  draw(0);
 }
 
 /* ---------- history ---------- */
@@ -828,7 +859,8 @@ function library(){
       (!q || [c.name, c.en, c.up, c.rev, c.u, c.l, c.w, c.sh].join(" ").toLowerCase().includes(q)));
     document.getElementById("lg").innerHTML = list.length ? list.map(c => `<button class="lc" data-card="${c.id}"><div class="lci">${art(c.id)}</div><span>${c.name}</span></button>`).join("")
       : `<div class="empty" style="grid-column:1/-1">검색 결과가 없습니다</div>`;
-    document.querySelectorAll("#lg [data-card]").forEach(b => b.onclick = () => showCard(b.dataset.card, false, null));
+    const lst = list.map(c => ({id:c.id, r:false, pos:null}));
+    document.querySelectorAll("#lg [data-card]").forEach((b, j) => b.onclick = () => viewer(lst, j));
   };
   document.getElementById("ls").oninput = e => { libQ = e.target.value.trim(); draw(); };
   document.querySelectorAll("#lf .chip").forEach(b => b.onclick = () => { libF = b.dataset.f;
