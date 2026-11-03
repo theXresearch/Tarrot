@@ -136,6 +136,7 @@ const NAV = [
   ["tools","도구",'<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>']
 ];
 function renderNav(){
+  releaseWake();
   $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}" aria-label="${n[1]}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${n[2]}</svg>${n[1]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => ({read:home, cl:clientsView, lib:library, hist:history, tools:tools})[b.dataset.t]());
@@ -149,9 +150,13 @@ function curBanner(){
 function bindCur(after){ const x = document.getElementById("curx"); if (x) x.onclick = () => { setCur(null); toast("상담을 종료했습니다"); after(); }; }
 
 /* ---------- HOME ---------- */
-let topicSel = -1;
+let topicSel = -1, homeQ = "";
+function qReco(q){
+  return `<div class="reco">${routeQuestion(q).map(([, k, v, why], j) => { const s = SPREADS[k];
+    return `<button class="rbtn" data-s="${k}" data-v="${v}" data-q="${esc(q)}">${j === 0 ? '<span class="rtag">추천</span>' : ""}<div class="ic">${s.icon}</div><div><b>${s.variants ? s.title + " · " + s.variants[v].name : s.title}</b><span>${why}</span></div></button>`; }).join("")}</div>`;
+}
 function home(){
-  R = null; tab = "read"; renderNav();
+  R = null; tab = "read"; renderNav(); releaseWake();
   const groups = [["기본","기본 리딩"],["주제별","주제별 리딩"],["심층","심층 리딩"],["시기","시기 리딩"]];
   const tip = (!isStandalone() && !settings.tipHidden) ? `<div class="tip"><button id="tipx" aria-label="닫기">×</button>
     <b>앱처럼 쓰기</b><br>${isIOS() ? "Safari 하단 <b>공유 버튼</b> → <b>홈 화면에 추가</b>" : "Chrome 오른쪽 위 <b>⋮ 메뉴</b> → <b>홈 화면에 추가</b>"}</div>` : "";
@@ -159,7 +164,10 @@ function home(){
       return `<button class="rbtn" data-s="${k}" data-v="${v}">${j === 0 ? '<span class="rtag">추천</span>' : ""}<div class="ic">${s.icon}</div><div><b>${s.variants ? s.title + " · " + s.variants[v].name : s.title}</b><span>${why}</span></div></button>`; }).join("")}</div>` : "";
   $app.innerHTML = `${curBanner()}
   <div class="hero"><h1>X TAROT</h1><p>마음을 가라앉히고, 질문을 떠올리세요</p></div>
-  <div class="lbl">무엇이 궁금하세요?</div>
+  <div class="ask1"><div class="lbl" style="margin-top:0">질문으로 시작하기</div>
+    <div class="ab1"><input class="inp" id="hq" maxlength="200" placeholder="예: 헤어진 그 사람과 다시 만날 수 있을까?" value="${esc(homeQ)}"><button class="cta" id="hqgo">찾기</button></div>
+    <div id="hqr">${homeQ ? qReco(homeQ) : ""}</div></div>
+  <div class="lbl">또는 주제로 고르기</div>
   <div class="chips" id="topics">${TOPICS.map((t, i) => `<button class="chip${i === topicSel ? " on" : ""}" data-t="${i}">${t[0]}</button>`).join("")}</div>
   ${reco}
   <button class="mbtn" data-s="one"><div class="ic">1</div><div><b>오늘의 카드</b><span>${cur ? "손님의 오늘 메시지 한 장" : "하루 한 장, 오늘의 메시지"}</span></div></button>
@@ -167,7 +175,13 @@ function home(){
     <div class="sgrid">${Object.entries(SPREADS).filter(([k, s]) => s.group === g && k !== "one").map(([k, s]) =>
       `<button class="sbtn" data-s="${k}"><div class="ic">${s.icon}</div><b>${s.title}</b><span>${s.desc}</span><em>${s.count}장</em></button>`).join("")}</div>`).join("")}
   ${tip}`;
-  $app.querySelectorAll("[data-s]").forEach(b => b.onclick = () => start(b.dataset.s, +(b.dataset.v || 0)));
+  const bindS = root => root.querySelectorAll("[data-s]").forEach(b => b.onclick = () => start(b.dataset.s, +(b.dataset.v || 0), b.dataset.q || ""));
+  bindS($app);
+  const hq = document.getElementById("hq");
+  const findQ = () => { homeQ = hq.value.trim(); if (!homeQ){ toast("질문을 입력하세요"); return; }
+    const box = document.getElementById("hqr"); box.innerHTML = qReco(homeQ); bindS(box); };
+  document.getElementById("hqgo").onclick = findQ;
+  hq.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); findQ(); } };
   $app.querySelectorAll("#topics .chip").forEach(b => b.onclick = () => { const t = +b.dataset.t; topicSel = topicSel === t ? -1 : t; home(); });
   const tx = document.getElementById("tipx"); if (tx) tx.onclick = () => { settings.tipHidden = true; saveSettings(); home(); };
   bindCur(home);
@@ -175,12 +189,12 @@ function home(){
 }
 
 /* ---------- READING FLOW ---------- */
-function start(key, v){
+function start(key, v, q){
   if (key === "one"){
     const today = store.get("history", []).find(x => x.k === "one" && (x.cl || null) === (cur || null) && sameDay(x.t, Date.now()));
     if (today){ openHistory(today, `오늘의 카드는 하루 한 장입니다. ${cur ? "이 손님은" : ""} 오늘 이미 뽑은 카드입니다. 내일 새 카드를 뽑을 수 있습니다.`); return; }
   }
-  R = {key, v:v || 0, q:"", a:"", b:"", t:Date.now(), deck:null, picked:[], flipped:new Set(), saved:false, stage:"ask", memo:"", cl:cur};
+  R = {key, v:v || 0, q:q || "", a:"", b:"", t:Date.now(), deck:null, picked:[], flipped:new Set(), saved:false, stage:"ask", memo:"", cl:cur};
   renderReading();
 }
 function openHistory(x, note){
@@ -194,6 +208,24 @@ function whoSelect(){
     ${cs.map(c => `<option value="${c.id}"${R.cl === c.id ? " selected" : ""}>${esc(c.name)}</option>`).join("")}<option value="__new">+ 새 손님 등록</option></select>
     <div class="ab" id="nw" hidden style="margin-top:8px"><input class="inp" id="nn" maxlength="30" placeholder="손님 이름"><button class="cta" id="nnok">등록</button></div>`;
 }
+const CHOICE_AB = {"이직할까, 지금 회사에 남을까?":["이직","현 직장"],"A 회사와 B 회사 중 어디가 나을까?":["A 회사","B 회사"],"창업할까, 취업할까?":["창업","취업"],
+  "이사를 갈까, 그대로 살까?":["이사","그대로"],"고백할까, 기다릴까?":["고백","기다림"],"다시 만날까, 새 출발할까?":["재회","새 출발"],"계약할까, 보류할까?":["계약","보류"]};
+function qPicker(){
+  const groups = qListFor(R.key, R.v); if (!groups.length) return "";
+  const g = Math.min(R.qg || 0, groups.length - 1);
+  return `${groups.length > 1 ? `<div class="qtabs">${groups.map((x, i) => `<button class="qtab${i === g ? " on" : ""}" data-g="${i}">${x[0]}</button>`).join("")}</div>` : ""}
+    <div class="qlist">${groups[g][1].map(q => `<button class="qitem${q === R.q ? " on" : ""}">${esc(q)}</button>`).join("")}</div>`;
+}
+function bindQPick(){
+  const box = document.getElementById("qpick"); if (!box) return;
+  box.querySelectorAll(".qtab").forEach(t => t.onclick = () => { R.q = document.getElementById("q").value; R.qg = +t.dataset.g; box.innerHTML = qPicker(); bindQPick(); });
+  box.querySelectorAll(".qitem").forEach(b => b.onclick = () => {
+    const q = b.textContent, ta = document.getElementById("q"); ta.value = q; R.q = q;
+    box.querySelectorAll(".qitem").forEach(x => x.classList.toggle("on", x === b));
+    const ab = CHOICE_AB[q]; if (ab && document.getElementById("oa")){ document.getElementById("oa").value = ab[0]; document.getElementById("ob").value = ab[1]; }
+    ta.classList.add("pulse"); setTimeout(() => ta.classList.remove("pulse"), 600);
+  });
+}
 function renderReading(){
   const sp = spreadOf(R);
   let body = "";
@@ -201,15 +233,17 @@ function renderReading(){
     body = `<p class="sdesc">${sp.desc} · ${sp.count}장</p>${whoSelect()}
       ${sp.variants ? `<div class="lbl">관점 선택</div><div class="chips" id="vars">${sp.variants.map((v, i) => `<button class="chip${i === R.v ? " on" : ""}" data-v="${i}">${v.name}</button>`).join("")}</div>` : ""}
       ${sp.choice ? `<div class="lbl">두 가지 선택지</div><div class="ab"><input class="inp" id="oa" maxlength="20" placeholder="A (예: 이직)" value="${esc(R.a)}"><input class="inp" id="ob" maxlength="20" placeholder="B (예: 현 직장)" value="${esc(R.b)}"></div>` : ""}
-      <div class="lbl">질문</div>
+      <div class="lbl">질문 <span class="lbls">직접 쓰거나 아래에서 고르세요</span></div>
       <textarea class="q" id="q" placeholder="예: ${esc(sp.tips[0])}" maxlength="200">${esc(R.q)}</textarea>
-      <div class="chips">${sp.tips.map(t => `<button class="chip tipq">${esc(t)}</button>`).join("")}</div>
+      <div class="lbl">자주 하는 질문</div><div id="qpick">${qPicker()}</div>
       <p class="qguide">좋은 질문: “~하면 어떻게 될까?”, “~를 위해 무엇을 해야 할까?”처럼 열린 질문이 더 깊은 답을 줍니다. ${sp.dynamic === "year" ? "이번 달부터 12개월을 봅니다." : sp.dynamic === "week" ? "오늘부터 7일을 봅니다." : ""}</p>
+      <details class="sec posprev"><summary>이 스프레드의 자리 · ${sp.count}곳</summary><div class="secb"><ol class="plist">${positions(R).map(p => `<li><b>${esc(p[0])}</b> — ${esc(p[1])}</li>`).join("")}</ol></div></details>
       <div id="warn"></div>
       <button class="cta" id="go">카드 섞기</button>`;
   } else if (R.stage === "shuffle"){
     body = `${R.q ? `<div class="qshow">“${esc(R.q)}”</div>` : ""}
-      <div class="sky"><canvas class="stars"></canvas><div class="orbit"><div class="orb"></div>${[0,1,2,3,4,5].map(i => `<div class="oc" style="--i:${i}">${BACK}</div>`).join("")}</div></div>
+      <div class="sky"><canvas class="stars"></canvas><div class="riffle" id="rf">${Array.from({length:16}, () => `<div class="rc">${BACK}</div>`).join("")}</div></div>
+      <div class="scount"><span class="sdot"></span>카드를 섞고 있습니다 · 셔플 <b id="sc">0</b>회</div>
       <p class="hint">질문을 마음속으로 떠올리며 원하는 만큼 섞으세요.<br>손님이 직접 멈추게 하세요.</p>
       <button class="cta" id="stop" disabled>그만 섞기</button>`;
   } else if (R.stage === "cut"){
@@ -225,8 +259,9 @@ function renderReading(){
   if (R.stage === "ask") bindAsk(sp);
   if (R.stage === "shuffle"){
     startStars(document.querySelector(".sky .stars"));
+    keepAwake();
     const stop = document.getElementById("stop");
-    setTimeout(() => { if (stop.isConnected) stop.disabled = false; }, 1200);
+    riffle(document.getElementById("rf"), n => { const sc = document.getElementById("sc"); if (sc) sc.textContent = n; R.deck = shuffled(); if (n >= 1 && stop.isConnected) stop.disabled = false; });
     stop.onclick = () => { R.deck = shuffled(); R.stage = "cut"; renderReading(); };
   }
   if (R.stage === "cut") $app.querySelectorAll(".pile").forEach(b => b.onclick = () => {
@@ -247,8 +282,10 @@ function bindAsk(sp){
   };
   const vars = document.getElementById("vars");
   if (vars) vars.querySelectorAll(".chip").forEach(c => c.onclick = () => {
-    R.v = +c.dataset.v; vars.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c)); });
-  $app.querySelectorAll(".tipq").forEach(c => c.onclick = () => { document.getElementById("q").value = c.textContent; });
+    R.v = +c.dataset.v; vars.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c));
+    R.qg = 0; document.getElementById("qpick").innerHTML = qPicker(); bindQPick();
+    document.querySelector(".posprev .plist").innerHTML = positions(R).map(p => `<li><b>${esc(p[0])}</b> — ${esc(p[1])}</li>`).join(""); });
+  bindQPick();
   const go = force => {
     R.q = document.getElementById("q").value.trim();
     if (sp.choice){ R.a = document.getElementById("oa").value.trim(); R.b = document.getElementById("ob").value.trim(); }
@@ -341,9 +378,49 @@ function pick(k, fromEl){
   return true;
 }
 
+/* ---------- riffle shuffle animation (연출 — 실제 셔플은 매 회 crypto로 수행) ---------- */
+function riffle(box, onCycle){
+  const cards = [...box.querySelectorAll(".rc")], n = cards.length, half = n / 2;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const set = (el, x, y, r, z, delay) => { el.style.transitionDelay = delay + "ms"; el.style.transform = `translate(${x}px,${y}px) rotate(${r}deg)`; el.style.zIndex = z; };
+  let order = cards.map((_, i) => i), cycle = 0;
+  const stackAt = (x, r, list, base, d) => list.forEach((ci, j) => set(cards[ci], x + j * .4, -j * 1.2, r, base + j, d ? j * 12 : 0));
+  stackAt(0, 0, order, 1, false);
+  const step = () => {
+    if (!box.isConnected) return;
+    // 1) 덱을 반으로 나눔
+    const L = order.slice(0, half), Rt = order.slice(half);
+    stackAt(-78, -10, L, 1, true); stackAt(78, 10, Rt, 1, true);
+    setTimeout(() => {
+      if (!box.isConnected) return;
+      // 2) 양쪽에서 번갈아 떨어뜨리며 섞음 (리플)
+      const merged = []; let li = 0, ri = 0;
+      while (li < L.length || ri < Rt.length){
+        const takeL = ri >= Rt.length || (li < L.length && Math.random() < .5);
+        merged.push(takeL ? L[li++] : Rt[ri++]);
+      }
+      merged.forEach((ci, j) => set(cards[ci], (Math.random() - .5) * 8, -j * 1.2, (Math.random() - .5) * 6, 100 + j, j * 55));
+      order = merged;
+      setTimeout(() => {
+        if (!box.isConnected) return;
+        // 3) 가지런히 정리
+        stackAt(0, 0, order, 1, false);
+        cycle++; onCycle(cycle);
+        setTimeout(step, reduce ? 900 : 380);
+      }, merged.length * 55 + 320);
+    }, 420);
+  };
+  setTimeout(step, 250);
+}
+let wakeLock = null;
+async function keepAwake(){ try { if ("wakeLock" in navigator && !wakeLock){ wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch(e){} }
+function releaseWake(){ try { if (wakeLock) wakeLock.release(); } catch(e){} wakeLock = null; }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && R) keepAwake(); });
+
 /* ---------- card wheel (연출 전용 — 카드는 이미 셔플된 덱 순서에서 뽑힘) ---------- */
 let WH = null;
 function initWheel(){
+  keepAwake();
   const ww = document.getElementById("ww"), wheel = document.getElementById("wheel");
   startStars(ww.querySelector(".stars"));
   const W = ww.clientWidth, H = ww.clientHeight, cw = 60, chh = 102;
@@ -753,10 +830,13 @@ const histItem = (x, i) => { const r = {key:x.k, v:x.v, t:x.t, a:x.a, b:x.b}, c 
     <b>${c ? `<span class="cn">${esc(c.name)}</span> ` : ""}${x.q ? esc(x.q) : "질문 없음"}</b>
     <div class="c">${x.c.slice(0, 4).map(c => byId[c[0]].name + (c[1] ? "(역)" : "")).join(", ")}${x.c.length > 4 ? " 외 " + (x.c.length - 4) + "장" : ""}</div></button>`; };
 let histF = "all";
+let histQ = "";
 function history(){
   R = null; tab = "hist"; renderNav();
   const all = store.get("history", []).filter(x => SPREADS[x.k]);
-  const h = all.filter(x => histF === "all" || (histF === "me" ? !x.cl : !!x.cl));
+  const hq = histQ.toLowerCase();
+  const h = all.filter(x => (histF === "all" || (histF === "me" ? !x.cl : !!x.cl)) &&
+    (!hq || [x.q, x.m, (x.cl && clientById(x.cl) || {}).name, SPREADS[x.k].title, ...x.c.map(c => byId[c[0]].name)].join(" ").toLowerCase().includes(hq)));
   let stats = "";
   if (h.length >= 3){
     const cnt = {}, ec = {fire:0, water:0, air:0, earth:0}; let total = 0;
@@ -766,11 +846,13 @@ function history(){
     stats = `<div class="stats"><div class="st"><b>${h.length}</b><span>리딩</span></div><div class="st"><b>${total}</b><span>뽑은 카드</span></div><div class="st"><b>${ELEMENTS[topEl].ko}</b><span>가장 많은 원소</span></div></div>
       <div class="lbl">자주 나온 카드</div><div class="topc">${top.map(([id, k]) => `<button class="lc" data-card="${id}"><div class="lci">${art(id)}</div><span>${byId[id].name} · ${k}회</span></button>`).join("")}</div>`;
   }
-  $app.innerHTML = topbar("리딩 기록", false) +
+  $app.innerHTML = topbar("리딩 기록", false) + `<input class="inp" id="hs" type="search" placeholder="질문 · 손님 이름 · 카드 · 메모 검색" value="${esc(histQ)}">` +
     `<div class="chips" id="hf">${[["all","전체"],["me","나"],["cl","손님"]].map(f => `<button class="chip${histF === f[0] ? " on" : ""}" data-f="${f[0]}">${f[1]}</button>`).join("")}</div>` +
     stats + (h.length ? `<div class="lbl">최근 리딩</div>` + h.map(histItem).join("")
     : `<div class="empty">아직 저장된 리딩이 없습니다.<br>리딩을 마치면 자동으로 저장됩니다.</div>`);
   $app.querySelectorAll("#hf .chip").forEach(b => b.onclick = () => { histF = b.dataset.f; history(); });
+  const hs = document.getElementById("hs"); let ht;
+  hs.oninput = () => { clearTimeout(ht); ht = setTimeout(() => { histQ = hs.value.trim(); history(); const n = document.getElementById("hs"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 300); };
   $app.querySelectorAll("[data-card]").forEach(b => b.onclick = () => showCard(b.dataset.card, false, null));
   $app.querySelectorAll(".hi").forEach(b => b.onclick = () => openHistory(h[+b.dataset.i], null));
   window.scrollTo(0, 0);
