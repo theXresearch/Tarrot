@@ -99,7 +99,11 @@ const BACK = (() => {
 document.body.insertAdjacentHTML("afterbegin", `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="xtbp" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M5 0L10 5L5 10L0 5Z" fill="none" stroke="#d9b46a" stroke-width=".35" opacity=".45"/></pattern>
 <radialGradient id="xtbg" cx=".5" cy=".45" r=".7"><stop offset="0" stop-color="#2b2a6e"/><stop offset="1" stop-color="#0d1129"/></radialGradient></defs></svg>`);
 const svgCache = {};
-const art = id => svgCache[id] || (svgCache[id] = cardSVG(byId[id]));
+const IDX = Object.fromEntries(DECK.map((c, i) => [c.id, i]));
+// 1909 Rider-Waite-Smith (public domain) — 78 cards in one sprite: 13 cols x 6 rows
+const art = id => { const i = IDX[id];
+  return `<div class="ci" role="img" aria-label="${byId[id].name}" style="background-position:${(i % 13) * 100 / 12}% ${Math.floor(i / 13) * 100 / 5}%"></div>`; };
+const artSVG = id => svgCache[id] || (svgCache[id] = cardSVG(byId[id]));
 
 /* ---------- helpers ---------- */
 const esc = s => String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));

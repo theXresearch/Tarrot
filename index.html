@@ -10,6 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="X Tarot">
+<link rel="preload" href="deck.jpg" as="image">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -86,7 +87,8 @@ button{font-family:inherit;color:inherit;border:0;background:none;cursor:pointer
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:8%;overflow:hidden;box-shadow:0 4px 14px #0008}
 .face svg{display:block;width:100%;height:100%}
 .front{transform:rotateY(180deg)}
-.front.rev svg{transform:rotate(180deg)}
+.front.rev>*{transform:rotate(180deg)}
+.ci{width:100%;height:100%;background:#f4ecda url(deck.jpg) no-repeat;background-size:1300% 600%}
 
 /* deck strip */
 .deckwrap{margin:14px -16px 0;position:relative}
@@ -113,7 +115,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;cursor:pointer
 .it{display:flex;gap:12px;padding:12px;margin-bottom:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
 .it .mini{flex:none;width:46px;height:78px;border-radius:4px;overflow:hidden}
 .it .mini svg{width:100%;height:100%;display:block}
-.it .mini.rev svg{transform:rotate(180deg)}
+.it .mini.rev>*{transform:rotate(180deg)}
 .it .p{font-size:12px;color:var(--gold)}
 .it .n{font-size:16px;font-weight:700;margin:2px 0 4px}
 .tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:9px;margin-left:6px;vertical-align:2px}
@@ -138,7 +140,7 @@ button{font-family:inherit;color:inherit;border:0;background:none;cursor:pointer
 .mbox{width:100%;max-width:380px;max-height:90vh;overflow:auto;background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:20px;text-align:center}
 .mbox .big{width:150px;height:255px;margin:0 auto 14px;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px #000a}
 .mbox .big svg{width:100%;height:100%;display:block}
-.mbox .big.rev svg{transform:rotate(180deg)}
+.mbox .big.rev>*{transform:rotate(180deg)}
 .mbox h4{margin:0;font:700 20px var(--ser);color:var(--gold2)}
 .mbox .en{color:var(--muted);font-size:13px;margin:2px 0 12px}
 .mbox .blk{text-align:left;padding:10px 12px;border-radius:10px;background:#ffffff08;margin-top:8px;font-size:14px;line-height:1.55}
