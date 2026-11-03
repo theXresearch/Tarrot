@@ -209,7 +209,7 @@ function renderReading(){
       <button class="cta" id="go">카드 섞기</button>`;
   } else if (R.stage === "shuffle"){
     body = `${R.q ? `<div class="qshow">“${esc(R.q)}”</div>` : ""}
-      <div class="shuffle loop"><div>${BACK}</div><div class="s1">${BACK}</div><div class="s2">${BACK}</div></div>
+      <div class="sky"><canvas class="stars"></canvas><div class="orbit"><div class="orb"></div>${[0,1,2,3,4,5].map(i => `<div class="oc" style="--i:${i}">${BACK}</div>`).join("")}</div></div>
       <p class="hint">질문을 마음속으로 떠올리며 원하는 만큼 섞으세요.<br>손님이 직접 멈추게 하세요.</p>
       <button class="cta" id="stop" disabled>그만 섞기</button>`;
   } else if (R.stage === "cut"){
@@ -224,6 +224,7 @@ function renderReading(){
   document.getElementById("back").onclick = () => R.fromHistory ? history() : home();
   if (R.stage === "ask") bindAsk(sp);
   if (R.stage === "shuffle"){
+    startStars(document.querySelector(".sky .stars"));
     const stop = document.getElementById("stop");
     setTimeout(() => { if (stop.isConnected) stop.disabled = false; }, 1200);
     stop.onclick = () => { R.deck = shuffled(); R.stage = "cut"; renderReading(); };
@@ -264,7 +265,7 @@ function bindAsk(sp){
       }
     }
     R.t = Date.now();
-    if (settings.quick){ R.deck = shuffled(); R.stage = "pick"; renderReading(); setTimeout(() => { const a = document.getElementById("auto"); if (a) a.click(); }, 300); }
+    if (settings.quick){ R.deck = shuffled(); R.stage = "pick"; renderReading(); setTimeout(() => { const a = document.getElementById("auto"); if (a) a.click(); }, 400); }
     else { R.stage = "shuffle"; renderReading(); }
   };
   document.getElementById("go").onclick = () => go(false);
@@ -300,15 +301,10 @@ function renderBelow(){
   const el = document.getElementById("below"); const n = spreadOf(R).count;
   if (R.stage === "pick"){
     el.innerHTML = `<div class="counter">카드 ${n - R.picked.length}장을 골라주세요</div>
-      <div class="deckwrap"><div class="strip">${R.deck.map((c, i) => `<button class="bk" data-k="${i}" aria-label="카드">${BACK}</button>`).join("")}</div></div>
-      <p class="hint">← 좌우로 넘기며 끌리는 카드를 탭하세요 →</p>
-      <button class="cta ghost" id="auto">맨 위에서 차례로 뽑기</button>`;
-    el.querySelectorAll(".bk").forEach(b => b.onclick = () => pick(+b.dataset.k, b));
-    document.getElementById("auto").onclick = () => {
-      if (R.autoing) return; R.autoing = true;
-      const avail = [...el.querySelectorAll(".bk:not(.gone)")].slice(0, n - R.picked.length);
-      avail.forEach((b, j) => setTimeout(() => pick(+b.dataset.k, b), j * 140));
-    };
+      <div class="wheelwrap" id="ww"><canvas class="stars"></canvas><div class="halo"></div><div class="wheel" id="wheel"></div></div>
+      <p class="hint">손가락으로 카드 바퀴를 돌리세요.<br>가운데 떠오른 카드나 끌리는 카드를 탭하면 뽑힙니다.</p>
+      <button class="cta ghost" id="auto">운명에 맡기기</button>`;
+    initWheel();
   } else if (R.stage === "reveal"){
     el.innerHTML = `<p class="hint" style="margin-top:22px">카드를 탭해서 한 장씩 뒤집으세요</p><button class="cta" id="all">모두 뒤집기</button>`;
     document.getElementById("all").onclick = () => { for (let i = 0; i < n; i++) setTimeout(() => flip(i), i * 130); };
@@ -317,13 +313,126 @@ function renderBelow(){
     bindResults(el);
   }
 }
-function pick(k, btn){
+function pick(k, fromEl){
   const n = spreadOf(R).count;
-  if (R.picked.length >= n || btn.classList.contains("gone")) return;
-  btn.classList.add("gone");
-  const i = R.picked.length; R.picked.push(R.deck[k]); updateSlot(i);
-  const c = document.querySelector(".counter"); if (c) c.textContent = R.picked.length < n ? `카드 ${n - R.picked.length}장을 더 골라주세요` : "준비 완료";
-  if (R.picked.length === n) setTimeout(() => { R.stage = "reveal"; renderBelow(); }, 450);
+  if ((R.nextSlot || 0) >= n) return false;
+  const i = R.nextSlot = (R.nextSlot || 0) + 1, slotI = i - 1;
+  R.flying = (R.flying || 0) + 1;
+  const done = () => {
+    R.flying--; R.picked[slotI] = R.deck[k]; updateSlot(slotI);
+    const s = document.querySelector(`.slot[data-i="${slotI}"]`); if (s){ s.classList.add("land"); setTimeout(() => s.classList.remove("land"), 900); }
+    const left = n - R.picked.filter(Boolean).length;
+    const c = document.querySelector(".counter"); if (c) c.textContent = left > 0 ? `카드 ${left}장을 더 골라주세요` : "준비 완료";
+    if (left === 0 && !R.flying) setTimeout(() => { if (R.stage === "pick"){ R.stage = "reveal"; WH = null; renderBelow(); } }, 500);
+  };
+  const slot = document.querySelector(`.slot[data-i="${slotI}"]`);
+  if (!fromEl || !slot || matchMedia("(prefers-reduced-motion: reduce)").matches){ done(); return true; }
+  const a = fromEl.getBoundingClientRect(), b = slot.getBoundingClientRect();
+  const f = document.createElement("div"); f.className = "fly"; f.innerHTML = BACK;
+  Object.assign(f.style, {left:a.left + "px", top:a.top + "px", width:a.width + "px", height:a.height + "px"});
+  document.body.appendChild(f);
+  const sw = slot.classList.contains("rot") ? b.height : b.width, sh = slot.classList.contains("rot") ? b.width : b.height;
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    f.style.transform = `translate(${dx}px,${dy}px) scale(${sw / a.width},${sh / a.height})${slot.classList.contains("rot") ? " rotate(90deg)" : ""}`;
+    f.classList.add("go");
+  }));
+  setTimeout(() => { f.remove(); done(); }, 720);
+  return true;
+}
+
+/* ---------- card wheel (연출 전용 — 카드는 이미 셔플된 덱 순서에서 뽑힘) ---------- */
+let WH = null;
+function initWheel(){
+  const ww = document.getElementById("ww"), wheel = document.getElementById("wheel");
+  startStars(ww.querySelector(".stars"));
+  const W = ww.clientWidth, H = ww.clientHeight, cw = 60, chh = 102;
+  const Rr = Math.max(360, W * 1.1), step = (34 / Rr) * 180 / Math.PI;
+  const cx = W / 2, cy = H * 0.5 + Rr;
+  const avail = R.deck.map((_, k) => k);
+  wheel.innerHTML = avail.map(k => `<button class="wc" data-k="${k}" aria-label="카드">${BACK}</button>`).join("");
+  WH = {ww, wheel, W, H, cw, chh, Rr, step, cx, cy, rot:0, vel:0, focus:-1, raf:0, busy:false,
+        els:[...wheel.querySelectorAll(".wc")]};
+  wheelLayout();
+  let drag = null;
+  ww.onpointerdown = e => { if (WH.busy) return; cancelAnimationFrame(WH.raf); drag = {x:e.clientX, t:performance.now(), moved:0}; WH.vel = 0; };
+  ww.onpointermove = e => { if (!drag) return;
+    const now = performance.now(), dx = e.clientX - drag.x, dDeg = dx / WH.Rr * 180 / Math.PI * 1.15;
+    drag.moved += Math.abs(dx); drag.x = e.clientX;
+    WH.vel = dDeg / Math.max(8, now - drag.t) * 16; drag.t = now;
+    WH.rot = clampRot(WH.rot + dDeg); wheelLayout(); };
+  const end = e => { if (!drag) return; const d = drag; drag = null;
+    if (d.moved < 8){ const t = document.elementFromPoint(e.clientX, e.clientY); const c = t && t.closest(".wc"); if (c) chooseFromWheel(c); return; }
+    coast(); };
+  ww.onpointerup = end; ww.onpointercancel = () => { drag = null; coast(); };
+  document.getElementById("auto").onclick = autoPick;
+}
+function clampRot(r){ const m = WH.els.length, lim = (m - 1) / 2 * WH.step + 2; return Math.max(-lim, Math.min(lim, r)); }
+function wheelLayout(){
+  const {els, step, rot, cx, cy, cw, chh, Rr} = WH, m = els.length;
+  let best = -1, bestA = 999;
+  els.forEach((el, j) => { const a = (j - (m - 1) / 2) * step + rot; if (Math.abs(a) < bestA){ bestA = Math.abs(a); best = j; } el._a = a; });
+  if (best !== WH.focus){ WH.focus = best; if (navigator.vibrate) try{ navigator.vibrate(4); }catch(e){} }
+  els.forEach((el, j) => {
+    const a = el._a, f = j === best, vis = Math.abs(a) < 62;
+    el.style.visibility = vis ? "visible" : "hidden";
+    if (!vis) return;
+    el.style.transform = `translate(${cx - cw / 2}px,${cy - chh / 2}px) rotate(${a}deg) translateY(${-Rr - (f ? 26 : 0)}px) scale(${f ? 1.18 : 1})`;
+    el.style.zIndex = f ? 200 : 100 - Math.round(Math.abs(a));
+    el.classList.toggle("focus", f);
+  });
+}
+function coast(onStop, decay){
+  const tick = () => {
+    WH.rot = clampRot(WH.rot + WH.vel); WH.vel *= (decay || 0.94); wheelLayout();
+    if (Math.abs(WH.vel) > 0.04){ WH.raf = requestAnimationFrame(tick); return; }
+    // 가장 가까운 카드에 정렬
+    const m = WH.els.length, target = -((WH.focus - (m - 1) / 2) * WH.step);
+    const snap = () => { WH.rot += (target - WH.rot) * 0.25; wheelLayout();
+      if (Math.abs(target - WH.rot) > 0.02) WH.raf = requestAnimationFrame(snap); else { WH.rot = target; wheelLayout(); if (onStop) onStop(); } };
+    snap();
+  };
+  WH.raf = requestAnimationFrame(tick);
+}
+function chooseFromWheel(el){
+  if (!WH || !el.isConnected) return;
+  if (!pick(+el.dataset.k, el)) return;
+  el.classList.add("taken");
+  WH.els = WH.els.filter(x => x !== el);
+  WH.wheel.classList.add("ease");
+  setTimeout(() => { el.remove(); }, 10);
+  WH.rot = clampRot(WH.rot); wheelLayout();
+  setTimeout(() => { if (WH) WH.wheel.classList.remove("ease"); }, 380);
+}
+function autoPick(){
+  if (!WH || WH.busy) return; WH.busy = true;
+  const btn = document.getElementById("auto"); if (btn) btn.disabled = true;
+  const n = spreadOf(R).count;
+  const next = () => {
+    if (!WH) return;
+    if ((R.nextSlot || 0) >= n){ WH.busy = false; return; }
+    if (settings.quick){ chooseFromWheel(WH.els[WH.focus]); setTimeout(next, 220); return; }
+    const first = !R.spun; R.spun = true;
+    WH.vel = (rand(2) ? 1 : -1) * (first ? 6 + rand(6) : 1.5 + rand(3));
+    coast(() => setTimeout(() => { if (WH){ chooseFromWheel(WH.els[WH.focus]); setTimeout(next, first ? 500 : 300); } }, first ? 250 : 120), first ? 0.95 : 0.86);
+  };
+  next();
+}
+let starRaf = 0;
+function startStars(cv){
+  if (!cv || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * dpr; cv.height = h * dpr; const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const S = Array.from({length:Math.round(w * h / 1800)}, () => ({x:Math.random() * w, y:Math.random() * h, r:Math.random() * 1.3 + .3, p:Math.random() * 6.3, s:Math.random() * .03 + .01, gold:Math.random() < .3}));
+  cancelAnimationFrame(starRaf);
+  const draw = () => {
+    if (!cv.isConnected) return;
+    g.clearRect(0, 0, w, h);
+    S.forEach(s => { s.p += s.s; const o = .25 + .75 * (0.5 + 0.5 * Math.sin(s.p));
+      g.globalAlpha = o; g.fillStyle = s.gold ? "#f0d79a" : "#ffffff"; g.beginPath(); g.arc(s.x, s.y, s.r, 0, 6.283); g.fill(); });
+    starRaf = requestAnimationFrame(draw);
+  };
+  draw();
 }
 function tapSlot(i){
   const pk = R.picked[i]; if (!pk || R.stage === "pick") return;
@@ -332,7 +441,8 @@ function tapSlot(i){
 function flip(i){
   if (R.flipped.has(i)) return;
   R.flipped.add(i);
-  const card = document.querySelector(`.slot[data-i="${i}"] .card`); if (card) card.classList.add("flipped");
+  const card = document.querySelector(`.slot[data-i="${i}"] .card`);
+  if (card){ card.classList.add("flipped"); const s = card.parentElement; setTimeout(() => { s.classList.add("flash"); setTimeout(() => s.classList.remove("flash"), 1100); }, 250); }
   if (R.flipped.size === spreadOf(R).count) setTimeout(() => { R.stage = "done"; save(); renderBelow();
     document.getElementById("below").scrollIntoView({behavior:"smooth", block:"start"}); }, 800);
 }
