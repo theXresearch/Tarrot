@@ -1,6 +1,6 @@
 // X Tarot service worker — 오프라인 캐시
-const VERSION = "xtarot-v4";
-const FILES = ["./", "index.html", "app.js", "cards.js", "manifest.json", "icon-180.png", "icon-192.png", "icon-512.png", "deck.jpg"];
+const VERSION = "xtarot-v5";
+const FILES = ["./", "index.html", "app.js", "cards.js", "spreads.js", "manifest.json", "icon-180.png", "icon-192.png", "icon-512.png", "deck.jpg"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))));
