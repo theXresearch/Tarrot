@@ -31,6 +31,7 @@ function shuffled(){
 
 /* ---------- art ---------- */
 // 1909 Rider-Waite-Smith (public domain) — 78 cards in one sprite: 13 cols x 6 rows
+const artHi = id => art(id).replace("></div>", `><img class="hii" src="hi/${id}.jpg" alt="" decoding="async"></div>`);
 const art = id => { const i = IDX[id];
   return `<div class="ci" role="img" aria-label="${byId[id].name}" style="background-position:${(i % 13) * 100 / 12}% ${Math.floor(i / 13) * 100 / 5}%"></div>`; };
 document.body.insertAdjacentHTML("afterbegin", `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -331,7 +332,7 @@ function slotInner(i){
   if (!pk) return `<div class="ph"></div>${num}${lab}`;
   const fl = R.flipped.has(i);
   return `${num}<div class="card${fl ? " flipped" : ""}" style="${R.stage === "done" ? "animation:none" : ""}"><div class="inner">
-    <div class="face back">${BACK}</div><div class="face front${pk.r ? " rev" : ""}">${art(pk.id)}</div></div></div>${lab}`;
+    <div class="face back">${BACK}</div><div class="face front${pk.r ? " rev" : ""}">${artHi(pk.id)}</div></div></div>${lab}`;
 }
 function updateSlot(i){ const s = document.querySelector(`.slot[data-i="${i}"]`); if (s) s.innerHTML = slotInner(i); }
 function renderBelow(){
@@ -356,7 +357,7 @@ function pick(k, fromEl){
   const i = R.nextSlot = (R.nextSlot || 0) + 1, slotI = i - 1;
   R.flying = (R.flying || 0) + 1;
   const done = () => {
-    R.flying--; R.picked[slotI] = R.deck[k]; updateSlot(slotI);
+    R.flying--; R.picked[slotI] = R.deck[k]; (new Image()).src = `hi/${R.deck[k].id}.jpg`; updateSlot(slotI);
     const s = document.querySelector(`.slot[data-i="${slotI}"]`); if (s){ s.classList.add("land"); setTimeout(() => s.classList.remove("land"), 900); }
     const left = n - R.picked.filter(Boolean).length;
     const c = document.querySelector(".counter"); if (c) c.textContent = left > 0 ? `카드 ${left}장을 더 골라주세요` : "준비 완료";
@@ -520,7 +521,8 @@ function flip(i){
   if (R.flipped.has(i)) return;
   R.flipped.add(i);
   const card = document.querySelector(`.slot[data-i="${i}"] .card`);
-  if (card){ card.classList.add("flipped"); const s = card.parentElement; setTimeout(() => { s.classList.add("flash"); setTimeout(() => s.classList.remove("flash"), 1100); }, 250); }
+  if (card){ card.classList.add("flipped"); const s = card.parentElement;
+    setTimeout(() => { const f = card.querySelector(".front"); if (f){ f.style.transform = "rotateY(180deg) translateZ(.1px)"; void f.offsetWidth; f.style.transform = ""; } }, 760); setTimeout(() => { s.classList.add("flash"); setTimeout(() => s.classList.remove("flash"), 1100); }, 250); }
   if (R.flipped.size === spreadOf(R).count) setTimeout(() => { R.stage = "done"; save(); renderBelow();
     document.getElementById("below").scrollIntoView({behavior:"smooth", block:"start"}); }, 800);
 }
