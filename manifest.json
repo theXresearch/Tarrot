@@ -1,14 +1,14 @@
 {
   "name": "X Tarot — theXresearch",
   "short_name": "X Tarot",
-  "description": "오늘의 카드 · 3장 · 켈틱 크로스 타로 리딩",
+  "description": "Professional tarot readings — eleven spreads, in English and Korean",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0d1129",
   "theme_color": "#0d1129",
-  "lang": "ko",
+  "lang": "en",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}

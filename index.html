@@ -1,16 +1,18 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>X Tarot</title>
 <meta name="theme-color" content="#0d1129">
-<meta name="description" content="theXresearch 전문 타로 — 11가지 스프레드와 전문 해석">
+<meta name="description" content="X Tarot by theXresearch — professional tarot readings, eleven spreads, English and Korean">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="X Tarot">
 <link rel="preload" href="deck.jpg" as="image">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -358,15 +360,29 @@ html.big .vbody .blk{font-size:17.5px}
 .scount b{font-size:18px}
 .sdot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold);animation:blink 1s ease-in-out infinite}
 @keyframes blink{50%{opacity:.2}}
+
+/* v4 bilingual */
+html[lang="en"]{--ser:"Cormorant Garamond","Iowan Old Style","Palatino Linotype",Georgia,serif}
+html[lang="en"] body{font-variant-numeric:lining-nums}
+html[lang="en"] .hero h1{letter-spacing:.14em;font-weight:600}
+html[lang="en"] .top h2,html[lang="en"] .vname,html[lang="en"] .head .one,html[lang="en"] .res h3,html[lang="en"] details.sec summary,html[lang="en"] .tcard h3{font-size:1.12em;letter-spacing:.01em}
+html[lang="en"] .vname{font-size:26px}
+html[lang="en"] .head .one{font-size:21px}
+.langsw{display:flex;justify-content:flex-end;gap:4px;margin:0 0 -18px}
+.langsw button{padding:6px 12px;border-radius:14px;font-size:12px;font-weight:700;color:var(--muted);border:1px solid var(--line);background:#ffffff08}
+.langsw button.on{color:#1b1530;background:var(--gold);border-color:var(--gold)}
+.langsw.inline{margin:0;flex:none}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
 <nav class="nav" id="nav"></nav>
-<script src="cards.js?v=10"></script>
-<script src="spreads.js?v=10"></script>
-<script src="questions.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="cards.js?v=11"></script>
+<script src="spreads.js?v=11"></script>
+<script src="questions.js?v=11"></script>
+<script src="data_en.js?v=11"></script>
+<script src="i18n.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

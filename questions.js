@@ -76,10 +76,13 @@ const QUESTION_ROUTES = [
   [/오늘/, "one", 0, "오늘의 메시지 한 장"],
   [/인생|운명|전환|막힌|앞으로|전체|깊이/, "celtic", 0, "가장 깊이 있는 10장 리딩"]
 ];
+const ROUTE_FALLBACK = [[null, "three", 0, "질문의 흐름을 과거·현재·미래로 봅니다"], [null, "celtic", 0, "깊이 보고 싶다면"]];
+const CHOICE_AB = {"이직할까, 지금 회사에 남을까?":["이직","현 직장"],"A 회사와 B 회사 중 어디가 나을까?":["A 회사","B 회사"],"창업할까, 취업할까?":["창업","취업"],
+  "이사를 갈까, 그대로 살까?":["이사","그대로"],"고백할까, 기다릴까?":["고백","기다림"],"다시 만날까, 새 출발할까?":["재회","새 출발"],"계약할까, 보류할까?":["계약","보류"]};
 function routeQuestion(q){
   const hits = [];
   QUESTION_ROUTES.forEach(r => { if (r[0].test(q) && !hits.some(h => h[1] === r[1])) hits.push(r); });
   // 판정형 질문은 주제 스프레드와 함께 예/아니오를 대안으로
-  if (!hits.length) hits.push([null, "three", 0, "질문의 흐름을 과거·현재·미래로 봅니다"], [null, "celtic", 0, "깊이 보고 싶다면"]);
+  if (!hits.length) hits.push(...ROUTE_FALLBACK);
   return hits.slice(0, 3);
 }
