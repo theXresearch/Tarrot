@@ -6,7 +6,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem("xdest." + k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem("xdest." + k, JSON.stringify(v)); }catch(e){} }
 };
-const settings = Object.assign({lang:"en", lmt:true, big:false}, store.get("settings", {}));
+const settings = Object.assign({lang:"en", lmt:true, big:false, zi:"late", eot:false}, store.get("settings", {}));
 const LANG = settings.lang === "ko" ? "ko" : "en";
 const T = LANG === "ko" ? TX_KO : TX_EN, U = T.ui;
 document.documentElement.lang = LANG;
@@ -37,8 +37,12 @@ const cityLabel = c => LANG === "ko" ? c[1] : c[0];
 /* ---------- compute & cache ---------- */
 const cache = {};
 function calc(p){
-  const key = p.id + JSON.stringify(p) + settings.lmt + new Date().toDateString();
-  if (!cache[key]) cache[key] = ENG.compute(p, {lmt:settings.lmt});
+  const key = p.id + JSON.stringify(p) + settings.lmt + settings.zi + settings.eot + new Date().toDateString();
+  if (!cache[key]){ const R = ENG.compute(p, {lmt:settings.lmt, zi:settings.zi, eot:settings.eot});
+    try { R.pro = PRO.analyze(R, new Date());
+      R.saju.strength = R.pro.strength; R.saju.fav = {group:R.pro.groupOfEl(R.pro.yong), el:R.pro.yong}; R.saju.favGroups = R.pro.favGroups;
+    } catch(e){ console.error(e); }
+    cache[key] = R; }
   return cache[key];
 }
 function active(){ const ps = people(); return ps.find(p => p.id === activeId) || ps[0] || null; }
@@ -54,7 +58,8 @@ const NAV = [
   ["people", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1.2-3.6 3.6-5.5 6.5-5.5s5.3 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.6c2.6.1 4.5 1.8 5.5 4.8"/>']
 ];
 const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, year:viewYear, people:viewPeople};
-const TJ = TOJ_TX[LANG];
+const TJ = TOJ_TX[LANG], SJ = SJ_TX[LANG];
+const sajuState = {sub:0};
 function renderNav(){
   $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "toj" ? TJ.title : U.nav[n[0]]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t));
@@ -106,45 +111,100 @@ function viewToday(){
 /* ---------- SAJU ---------- */
 function viewSaju(){
   const p = active(); if (!p) return needProfile();
-  const R = calc(p), S = R.saju, dm = S.dm;
+  const R = calc(p), S = R.saju, X = R.pro, dm = S.dm, sub = sajuState.sub;
   const order = [3, 2, 1, 0];
-  const col = i => { const x = S.P[i]; if (!x) return `<div class="pc empty"><div class="pl">${U.pillars[i]}</div><div class="unk">?</div></div>`;
-    return `<div class="pc${i === 2 ? " me" : ""}"><div class="pl">${U.pillars[i]}</div>
-      <div class="tg">${i === 2 ? U.self : tgN(x.tgS)}</div>
-      <div class="ch" style="--c:${EL_COLOR[ENG.STEM_EL[x.s]]}">${STEMS[x.s]}<small>${T.stemRead[x.s]} · ${elName(ENG.STEM_EL[x.s])}</small></div>
-      <div class="ch" style="--c:${EL_COLOR[ENG.BR_EL[x.b]]}">${BR[x.b]}<small>${T.brRead[x.b]} · ${T.animals[x.b][0]}</small></div>
-      <div class="tg">${tgN(x.tgB)}</div>
-      <div class="hd">${x.hidden.map(h => `<span style="color:${EL_COLOR[ENG.STEM_EL[h.s]]}">${STEMS[h.s]}</span>`).join("")}</div>
-      <div class="st">${T.stages[x.stage]}</div></div>`; };
-  const maxC = Math.max(...S.count), minC = Math.min(...S.count);
-  const elRows = S.count.map((c, e) => `<div class="er"><span style="color:${EL_COLOR[e]}">${elName(e)}</span>${bar(c, Math.max(4, maxC), EL_COLOR[e])}<b>${c}</b></div>`).join("");
-  const elNotes = [];
-  S.count.forEach((c, e) => { if (c >= 3 && c === maxC) elNotes.push(`<b>${elName(e)}</b> ↑ ${T.els[e].excess}`); if (c === 0) elNotes.push(`<b>${elName(e)}</b> ↓ ${T.els[e].lack}`); });
-  const fav = S.fav.el, nowY = new Date().getFullYear();
-  const lmtMin = p.time && settings.lmt ? Math.round(R.B.place.lon * 4 - ENG.tzOffsetMin(R.B.utc, R.B.place.tz)) : null;
-  $app.innerHTML = head(U.sajuH, `${esc(p.name)} · ${birthLine(p, R)}`) + whoBar(p) + `
-    <section class="card"><div class="pillars">${order.map(col).join("")}</div>
-      <div class="pnote">${!p.time ? U.timeNoteSaju : lmtMin !== null ? U.lmtNote(lmtMin) : ""}</div>
-      <div class="legend"><span>${U.stem}·${U.branch}</span><span>${U.hidden}</span><span>${U.stageL}</span></div></section>
-    ${sec(`${U.dmH} · ${STEMS[dm]} ${T.stemRead[dm]}`, `<div class="dmh" style="--c:${EL_COLOR[ENG.STEM_EL[dm]]}"><span class="big">${STEMS[dm]}</span><div><b>${T.dm[dm][0]}</b><small>${T.yy[dm % 2]} ${elName(ENG.STEM_EL[dm])}</small></div></div><p>${T.dm[dm][1]}</p>
-      <h3>${T.strength[S.strength][0]}</h3><p>${T.strength[S.strength][1]}</p>`)}
-    ${sec(U.elH, `<div class="els">${elRows}</div>${elNotes.length ? `<ul class="bul">${elNotes.map(x => `<li>${x}</li>`).join("")}</ul>` : ""}`)}
-    ${sec(U.favH, `<div class="fav" style="--c:${EL_COLOR[fav]}"><b>${elName(fav)}</b><span>${T.els[fav].nature}</span></div>
-      <div class="lucky"><div><span>${U.luckyColor}</span><b>${T.els[fav].color}</b></div><div><span>${U.luckyNum}</span><b>${T.els[fav].nums}</b></div><div><span>${U.luckyDir}</span><b>${T.els[fav].dir}</b></div></div><p class="note">${U.favNote}</p>`)}
-    ${S.stars.length ? sec(U.starsH, S.stars.map(k => `<div class="row2"><b>${T.stars[k][0]}</b><p>${T.stars[k][1]}</p></div>`).join("")) : ""}
-    ${sec(U.luckH, S.luck.length ? `<div class="luck">${S.luck.map(l => { const on = nowY >= l.y0 && nowY <= l.y1;
-        return `<div class="lk${on ? " on" : ""}"><span>${U.ageFrom(l.age)}</span><b style="color:${EL_COLOR[ENG.STEM_EL[l.s]]}">${STEMS[l.s]}</b><b style="color:${EL_COLOR[ENG.BR_EL[l.b]]}">${BR[l.b]}</b><small>${tgN(l.tg)}</small><em>${l.y0}</em>${on ? `<i>${U.luckNow}</i>` : ""}</div>`; }).join("")}</div>
-      ${R.curLuck ? `<p class="lead">${U.luckCur}: <b>${gzFull(R.curLuck.s, R.curLuck.b)}</b> · ${tgN(R.curLuck.tg)}</p><p>${T.tg[R.curLuck.tg].y}</p>` : ""}` : `<p>${U.noLuck}</p>`)}
-    ${sec(LANG === "ko" ? "십신으로 본 성향" : "Ten Gods in your chart", tgSummary(S))}
-    ${reportButtons()}
-    <p class="disc">${U.disc}</p>`;
+  const pn = i => U.pillars[i];
+  const elChip = e => `<span class="chip" style="--c:${EL_COLOR[e]}">${elName(e)}</span>`;
+  const tabs = `<div class="subtabs" role="tablist">${SJ.sub.map((t, i) => `<button role="tab" data-sub="${i}" class="${i === sub ? "on" : ""}">${t}</button>`).join("")}</div>`;
+  let body = "";
+  if (sub === 0){
+    const col = i => { const x = S.P[i]; if (!x) return `<div class="pc empty"><div class="pl">${pn(i)}</div><div class="unk">?</div></div>`;
+      return `<div class="pc${i === 2 ? " me" : ""}"><div class="pl">${pn(i)}</div>
+        <div class="tg">${i === 2 ? U.self : tgN(x.tgS)}</div>
+        <div class="ch" style="--c:${EL_COLOR[ENG.STEM_EL[x.s]]}">${STEMS[x.s]}<small>${T.stemRead[x.s]} · ${elName(ENG.STEM_EL[x.s])}</small></div>
+        <div class="ch" style="--c:${EL_COLOR[ENG.BR_EL[x.b]]}">${BR[x.b]}<small>${T.brRead[x.b]} · ${T.animals[x.b][0]}</small></div>
+        <div class="tg">${tgN(x.tgB)}</div>
+        <div class="hd">${X.hid[i].map(h => `<span style="color:${EL_COLOR[ENG.STEM_EL[h.s]]}">${STEMS[h.s]}</span>`).join("")}</div>
+        <div class="st">${T.stages[x.stage]}</div><div class="st">${SJ.sp12[X.sinsal12[i]].split(" — ")[0]}</div>
+        <div class="st ny">${LANG === "ko" ? SJ.nayinKo[X.nayin[i]] : X.NAYIN[X.nayin[i]]}</div></div>`; };
+    const lmtMin = p.time && settings.lmt ? Math.round(R.B.place.lon * 4 + (settings.eot ? ENG.eqTime(R.B.utc) : 0) - ENG.tzOffsetMin(R.B.utc, R.B.place.tz)) : null;
+    const flags = X.dayFlags.map(f => `<li>${SJ.dayFlag[f]}</li>`).join("");
+    const deuk = [X.deukryeong, X.deukji, X.deukse, X.roots.length > 0];
+    body = `<section class="card"><div class="pillars">${order.map(col).join("")}</div>
+        <div class="pnote">${!p.time ? SJ.timeNeed : lmtMin !== null ? U.lmtNote(lmtMin) : ""}</div>
+        <div class="legend"><span>${U.stem}·${U.branch}</span><span>${U.hidden}</span><span>${U.stageL}</span><span>${LANG === "ko" ? "12신살·납음" : "spirit star · nayin"}</span></div></section>
+      ${sec(`${SJ.ilju} · ${X.dayGZ} (${gzRead(S.P[2].s, S.P[2].b)})`, `<div class="dmh" style="--c:${EL_COLOR[ENG.STEM_EL[dm]]}"><span class="big">${STEMS[dm]}</span><div><b>${T.dm[dm][0]}</b><small>${T.yy[dm % 2]} ${elName(ENG.STEM_EL[dm])}</small></div></div>
+        <p class="lead">${SJ.iljuLine(X.dayGZ, T.dm[dm][0], SJ.iljuImg[S.P[2].b], tgN(S.P[2].tgB), SJ.stageText[X.dayStage].split(" — ")[0])}</p><p>${T.dm[dm][1]}</p>${flags ? `<ul class="bul">${flags}</ul>` : ""}`)}
+      ${sec(SJ.strengthH, `<div class="meter"><div class="mt"><i style="left:${Math.min(98, Math.max(2, X.score))}%"></i></div><div class="ml">${SJ.bands.map(b => `<span>${b[0].split("(")[0]}</span>`).join("")}</div></div>
+        <p class="lead"><b>${SJ.bands[X.band][0]}</b> · ${SJ.scoreL} ${X.score}</p><p>${SJ.bands[X.band][1]}</p>
+        <div class="deuk">${deuk.map((v, i) => `<div class="${v ? "y" : "n"}"><b>${SJ.deuk[i]}</b><span>${i === 3 ? (v ? SJ.roots(X.roots.length) : SJ.no) : v ? SJ.yes : SJ.no}</span><small>${SJ.deukText[i]}</small></div>`).join("")}</div>`)}
+      ${sec(SJ.elH, `<div class="els">${X.elPctFull.map((v, e) => `<div class="er"><span style="color:${EL_COLOR[e]}">${elName(e)}</span>${bar(v, 50, EL_COLOR[e])}<b class="pc2">${Math.round(v)}%</b></div>`).join("")}</div>`)}
+      ${sec(SJ.tgH, `<div class="tgg">${Object.keys(X.tgW).map(k => `<div class="er"><span>${tgN(k)}</span>${bar(X.tgW[k], 40)}<b class="pc2">${Math.round(X.tgW[k])}%</b></div>`).join("")}</div>
+        <div class="lucky">${["companion","output","wealth","officer","resource"].map(g => `<div><span>${T.groups[g]}</span><b>${Math.round(X.grpPct[g])}%</b></div>`).join("")}</div>`)}
+      ${sec(SJ.hidH, `<div class="hidt">${[0,1,2,3].filter(i => S.P[i]).map(i => `<div><b>${pn(i)} ${BR[S.P[i].b]}</b>${X.hid[i].map(h => `<span style="--c:${EL_COLOR[ENG.STEM_EL[h.s]]}"><em>${STEMS[h.s]}</em> ${SJ.hidRole[h.role]} · ${SJ.days(h.days)} · ${tgN(h.tg)}</span>`).join("")}</div>`).join("")}</div>
+        ${X.saryeong ? `<p class="lead">${SJ.saryeongL}: <b>${STEMS[X.saryeong.s]}</b> — ${SJ.saryeong(SJ.terms[X.saryeong.term] || X.saryeong.term, X.saryeong.day, STEMS[X.saryeong.s], tgN(X.saryeong.tg))}</p>` : ""}`)}
+      ${sec(LANG === "ko" ? "공망·태원·명궁" : "Void, conception & life palace", `<div class="lucky"><div><span>${SJ.gongH}</span><b>${X.kong.map(b => BR[b]).join("")}</b></div>${X.taiyuan ? `<div><span>${SJ.taiyuanL}</span><b>${toHanja(X.taiyuan)}</b></div>` : ""}${X.minggong ? `<div><span>${SJ.minggongL}</span><b>${toHanja(X.minggong)}</b></div>` : ""}</div>`)}`;
+  } else if (sub === 1){
+    const G = X.special ? SJ.special[X.special] : SJ.geok[X.geok];
+    const R5 = ["yong","hee","gi","gu","han"], roleEl = {yong:X.yong, hee:X.hee, gi:X.gi, gu:X.gu, han:X.han};
+    const E = T.els[X.yong];
+    body = `${sec(SJ.geokH, `<p class="lead"><b class="gname">${G[0]}</b> ${X.special ? "" : `<span class="gchip g${{seong:0, seongpa:2, pa:4, pyeong:2}[X.geokGrade]}">${SJ.geokGrade[X.geokGrade][0]}</span>`}</p>
+        <p>${G[1]}</p>${X.special ? `<p class="note">${SJ.specialNote}</p>` : `<p class="note">${LANG === "ko" ? "격을 정한 글자" : "Structure taken from"}: ${pn(1)} ${BR[S.P[1].b]} → <b>${STEMS[X.geokStem]}</b></p>
+        <p>${SJ.geokGrade[X.geokGrade][1]}</p>
+        ${X.ok.map(k => `<div class="row2 pos"><b>✓ ${SJ.ok[k][0]}</b><p>${SJ.ok[k][1]}</p></div>`).join("")}
+        ${X.bad.map(k => `<div class="row2 neg"><b>✕ ${SJ.bad[k][0]}</b><p>${SJ.bad[k][1]}</p></div>`).join("")}`}
+        ${!X.special ? `<p class="note">${SJ.careerH}: ${G[2]}</p>` : ""}`)}
+      ${sec(SJ.yongH, `<div class="roles">${R5.filter(r => roleEl[r] !== undefined).map(r => `<div class="rl r-${r}"><span>${SJ.roles[r]}</span><b style="color:${EL_COLOR[roleEl[r]]}">${elName(roleEl[r])}</b><small>${T.groups[X.groupOfEl(roleEl[r])]}</small></div>`).join("")}</div>
+        <p class="lead">${SJ.method[X.method]}</p>${X.method === "johu" ? `<p>${SJ.johuNote[X.johuNeed]}</p>` : X.johuNeed !== null && X.method !== "jong" ? `<p class="note">${SJ.johuMinor[X.johuNeed]}</p>` : ""}
+        ${R5.filter(r => roleEl[r] !== undefined).map(r => `<div class="row2"><b>${SJ.roles[r]} · ${elName(roleEl[r])}</b><p>${SJ.roleText[r]}</p></div>`).join("")}`)}
+      ${sec(`${SJ.yongUse} · ${elName(X.yong)}`, `<div class="lucky"><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div>
+        <p><b>${LANG === "ko" ? "어울리는 분야" : "Fitting fields"}:</b> ${SJ.elFields[X.yong]}</p><p><b>${LANG === "ko" ? "생활 속 개운법" : "Everyday luck habits"}:</b> ${SJ.elHabits[X.yong]}</p>`)}`;
+  } else if (sub === 2){
+    const posLabel = pos => pos.map(pn).join("·");
+    body = `${sec(SJ.relH, X.rels.length ? X.rels.map(r => `<div class="row2 ${["chong","hyeong","samhyeong","jahyeong","pa","hai","wonjin","stemChong"].includes(r.k) ? "neg" : ["gwimun"].includes(r.k) ? "" : "pos"}"><b>${SJ.rel[r.k][0]} · <span class="han">${r.ch}</span>${r.el != null ? ` → ${elName(r.el)}` : ""} <span class="orb">${posLabel(r.pos)} (${SJ.pairs[r.pos.join("")] || ""})</span></b><p>${SJ.rel[r.k][1]}</p></div>`).join("") : `<p>${SJ.relNone}</p>`)}
+      ${sec(SJ.starH, X.stars.length ? X.stars.map(s => `<div class="row2"><b>${SJ.star[s.k][0]} <span class="orb">${s.k === "hyeonchim" ? "" : posLabel(s.pos)}</span></b><p>${SJ.star[s.k][1]}</p></div>`).join("") : `<p>${SJ.starNone}</p>`)}
+      ${sec(SJ.sinsal12H, [0,1,2,3].filter(i => S.P[i]).map(i => `<div class="row2"><b>${pn(i)} ${BR[S.P[i].b]}</b><p>${SJ.sp12[X.sinsal12[i]]}</p></div>`).join(""))}
+      ${sec(SJ.stage12H, [0,1,2,3].filter(i => S.P[i]).map(i => `<div class="row2"><b>${pn(i)} ${BR[S.P[i].b]} · ${T.stages[S.P[i].stage]}</b><p>${SJ.stageText[S.P[i].stage]}</p></div>`).join(""))}`;
+  } else if (sub === 3){
+    const pal = [0,1,2,3].map(i => { const x = S.P[i]; if (!x) return `<div class="row2"><b>${SJ.palace[i][0]}</b><p class="note">${SJ.timeNeed}</p></div>`;
+      const k = i === 2 ? S.P[2].tgB : x.tgS, grp = ENG.TG_GROUP[k];
+      return `<div class="row2"><b>${SJ.palace[i][0]} · ${gzStr(x.s, x.b)} · ${tgN(k)}</b><small class="note">${SJ.palace[i][1]}</small><p>${SJ.palaceGroup[grp][i]}</p></div>`; }).join("");
+    const kinKeys = ["spouse","children","father","mother","siblings"];
+    const kin = kinKeys.map(k => { const K = X.kin[k], where = [...new Set(K.loc.filter(l => l.at !== "h").map(l => pn(l.i)))].join("·");
+      const star = k === "spouse" || k === "children" ? SJ.kinStar(p.gender, k) : k === "father" ? tgN("piancai") : k === "mother" ? `${tgN("zhengyin")}·${tgN("pianyin")}` : `${tgN("bijian")}·${tgN("jiecai")}`;
+      return `<div class="row2"><b>${SJ.kin[k]} <span class="orb">${star} · ${K.w}%${where ? ` · ${where}` : ""}</span></b>${bar(K.w, 40)}<p>${SJ.kinLevel[K.level]}${K.clash ? " " + SJ.kinClash : ""}${K.empty ? " " + SJ.kinEmpty : ""}</p></div>`; }).join("");
+    body = `${sec(SJ.palaceH, pal)}
+      ${sec(SJ.spouseH, `<p class="lead"><b>${BR[S.P[2].b]} · ${tgN(X.spouseGod)}</b></p><p>${SJ.spouseGod[X.spouseGod]}</p>${[...new Set(X.dayHit)].map(k => SJ.dayHitText[k] ? `<p class="note">• ${SJ.dayHitText[k]}</p>` : "").join("")}`)}
+      ${sec(SJ.kinH, (p.gender ? "" : `<p class="note">${SJ.kinNoGender}</p>`) + kin)}`;
+  } else if (sub === 4){
+    const tone = sc => SJ.luckTone.find(([t]) => sc >= t)[1];
+    const relLines = rel => rel.map(([k, i]) => SJ.luckRelText(k, pn(i))).filter(Boolean);
+    body = sec(SJ.luckH, X.luck.length ? X.luck.map(L => `<div class="lkd${L.now ? " on" : ""}"><div class="lkh"><span class="lkgz"><b style="color:${EL_COLOR[ENG.STEM_EL[L.s]]}">${STEMS[L.s]}</b><b style="color:${EL_COLOR[ENG.BR_EL[L.b]]}">${BR[L.b]}</b></span>
+        <div><b>${SJ.ageL(L.age)} · ${L.y0}–${L.y1}${L.now ? ` <em class="nowb">${SJ.nowLuck}</em>` : ""}</b><small>${tgN(L.tg)} / ${tgN(L.tgB)} · ${SJ.luckRole(L.rs, L.rb, SJ.roles)} · ${T.stages[L.stage]}</small></div><span class="tjsc sm">${L.score}</span></div>
+        ${bar(L.score, 100)}<p>${tone(L.score)} <b>${tgN(L.tg)}</b> — ${T.tg[L.tg].t}</p>${relLines(L.rel).length ? `<p class="note">${relLines(L.rel).join(" · ")}</p>` : ""}</div>`).join("") : `<p>${U.noLuck}</p>`)
+      + sec(SJ.yearsH, `<div class="yrs">${X.years.map(Y => `<div class="yr${Y.score >= 72 ? " good" : Y.score < 45 ? " bad" : ""}"><b>${Y.y}</b><span class="han">${STEMS[Y.s]}${BR[Y.b]}</span><small>${tgN(Y.tg)}</small><div class="mb"><i style="width:${Y.score}%"></i></div><em>${Y.score}</em></div>`).join("")}</div>
+        ${X.years.slice(0, 3).map(Y => `<div class="row2"><b>${Y.y} ${gzFull(Y.s, Y.b)} · ${SJ.yearAge(Y.age)} · ${Y.score}</b><p>${tone(Y.score)} ${T.tg[Y.tg].y}${relLines(Y.rel).length ? ` <span class="note">(${relLines(Y.rel).join(" · ")})</span>` : ""}</p></div>`).join("")}`);
+  } else {
+    const G = X.special ? SJ.special[X.special] : SJ.geok[X.geok];
+    const cur = X.luck.find(l => l.now), tone = sc => SJ.luckTone.find(([t]) => sc >= t)[1];
+    const sumTxt = SJ.summary({ilju:`${X.dayGZ}(${T.dm[dm][0]})`, band:SJ.bands[X.band][0], geok:G[0], grade:X.special ? "—" : SJ.geokGrade[X.geokGrade][0], yong:elName(X.yong), hee:elName(X.hee), gi:elName(X.gi),
+      luck:cur ? SJ.luckSum(gzStr(cur.s, cur.b), cur.score, tone(cur.score)) : ""});
+    const top2 = X.domGroup.slice(0, 2);
+    const ys = X.years.slice(1), good = ys.filter(y => y.score >= 70).slice(0, 4).map(y => y.y), badY = ys.filter(y => y.score < 45).slice(0, 3).map(y => y.y);
+    body = `${sec(SJ.summaryH, `<p class="lead">${sumTxt}</p>`)}
+      ${sec(SJ.personaH, `<p>${T.dm[dm][1]}</p><p>${SJ.groupPersona[top2[0]]} ${SJ.groupPersona[top2[1]]}</p><p class="note">${G[1]}</p>`)}
+      ${sec(SJ.careerH, `${!X.special ? `<p><b>${G[0]}</b> — ${G[2]}</p>` : ""}<p>${top2.map(g => `<b>${T.groups[g]}</b>: ${SJ.groupCareer[g]}`).join("<br>")}</p><p class="note">${LANG === "ko" ? "용신 분야" : "Useful God fields"}: ${SJ.elFields[X.yong]}</p>`)}
+      ${sec(SJ.wealthH, `<p>${SJ.wealth[X.wealthType]}</p>`)}
+      ${sec(SJ.healthH, X.health.length ? X.health.map(h => `<p>• ${SJ.healthLine(elName(h.e), h.t, SJ.organs[h.e])}</p>`).join("") + `<p class="note">${LANG === "ko" ? `기신 ${elName(X.gi)} — ${SJ.organs[X.gi]} 계통을 평소 관리하십시오.` : `Unfavourable element ${elName(X.gi)} — keep an eye on your ${SJ.organs[X.gi]}.`}</p>` : `<p>${SJ.healthOk}</p>`)}
+      ${sec(SJ.keyH, `<div class="lucky"><div><span>${SJ.nextGood}</span><b>${good.join(", ") || "—"}</b></div><div><span>${SJ.nextBad}</span><b>${badY.join(", ") || "—"}</b></div></div>
+        <p class="note">${SJ.settingsNote}</p>`)}
+      ${reportButtons()}`;
+  }
+  $app.innerHTML = head(U.sajuH, `${esc(p.name)} · ${birthLine(p, R)}`) + whoBar(p) + tabs + body + `<p class="disc">${U.disc}</p>`;
   bindWho(); bindReport(R);
+  $app.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sajuState.sub = +b.dataset.sub; viewSaju(); const t = $app.querySelector(".subtabs .on"); if (t) t.scrollIntoView({inline:"center", block:"nearest"}); });
 }
-function tgSummary(S){
-  const seen = [];
-  S.P.forEach(x => { if (!x) return; if (x.i !== 2 && !seen.includes(x.tgS)) seen.push(x.tgS); if (!seen.includes(x.tgB)) seen.push(x.tgB); });
-  return seen.slice(0, 5).map(k => `<div class="row2"><b>${tgN(k)}</b><p>${T.tg[k].t}</p></div>`).join("");
-}
+const toHanja = x => x;
 function birthLine(p, R){
   const d = `${R.B.y}-${String(R.B.m).padStart(2, "0")}-${String(R.B.d).padStart(2, "0")}`;
   const lun = `${LANG === "ko" ? "음력" : "lunar"} ${R.B.lunarY}.${R.B.lunarM}.${R.B.lunarD}${R.B.lunarLeap ? (LANG === "ko" ? " 윤" : " leap") : ""}`;
@@ -337,6 +397,8 @@ function viewPeople(){
     ${sec(U.settingsH, `
       <div class="srow"><div>${U.lang}</div><div class="seg" id="lang"><button data-l="en"${LANG === "en" ? ' class="on"' : ""}>EN</button><button data-l="ko"${LANG === "ko" ? ' class="on"' : ""}>한국어</button></div></div>
       <div class="srow"><div>${U.lmtL}<small>${U.lmtS}</small></div><button class="sw${settings.lmt ? " on" : ""}" id="lmt" aria-label="${U.lmtL}"></button></div>
+      <div class="srow"><div>${SJ.eotL}<small>${SJ.eotS}</small></div><button class="sw${settings.eot ? " on" : ""}" id="eot" aria-label="${SJ.eotL}"></button></div>
+      <div class="srow col"><div>${SJ.ziL}</div><div class="seg" id="zi"><button data-z="late"${settings.zi !== "early" ? ' class="on"' : ""}>${SJ.ziLate}</button><button data-z="early"${settings.zi === "early" ? ' class="on"' : ""}>${SJ.ziEarly}</button></div></div>
       <div class="srow"><div>${LANG === "ko" ? "큰 글씨" : "Large text"}</div><button class="sw${settings.big ? " on" : ""}" id="bigt" aria-label="Large text"></button></div>`)}
     ${sec(U.backup, `<div class="two"><button class="cta" id="exp">${U.exp}</button><button class="cta ghost" id="imp">${U.imp}</button></div><input type="file" id="impf" accept="application/json,.json" hidden>`)}
     ${sec(U.aboutH, `<p class="note">${U.about}</p><p><a class="lnk" href="../">${U.tarotLink} →</a></p>`)}`;
@@ -353,6 +415,8 @@ function viewPeople(){
   };
   document.querySelectorAll("#lang button").forEach(b => b.onclick = () => { if (b.dataset.l === LANG) return; settings.lang = b.dataset.l; saveSettings(); location.reload(); });
   document.getElementById("lmt").onclick = e => { settings.lmt = !settings.lmt; saveSettings(); e.currentTarget.classList.toggle("on"); };
+  document.getElementById("eot").onclick = e => { settings.eot = !settings.eot; saveSettings(); e.currentTarget.classList.toggle("on"); };
+  document.querySelectorAll("#zi button").forEach(b => b.onclick = () => { settings.zi = b.dataset.z; saveSettings(); document.querySelectorAll("#zi button").forEach(x => x.classList.toggle("on", x === b)); });
   document.getElementById("bigt").onclick = e => { settings.big = !settings.big; saveSettings(); e.currentTarget.classList.toggle("on"); document.documentElement.classList.toggle("big", settings.big); };
   document.getElementById("exp").onclick = async () => {
     const blob = new Blob([JSON.stringify({app:"xdestiny", v:1, people:people(), settings})], {type:"application/json"});
@@ -429,7 +493,16 @@ function reportText(R){
   L.push("", `■ ${U.sajuH}`, S.P.map((x, i) => x ? `${U.pillars[i]} ${gzFull(x.s, x.b)}` : `${U.pillars[i]} ?`).join(" · "));
   L.push(`${U.dmH}: ${STEMS[S.dm]} ${T.dm[S.dm][0]} — ${T.dm[S.dm][1]}`, `${T.strength[S.strength][0]}: ${T.strength[S.strength][1]}`);
   L.push(`${U.elH}: ${S.count.map((c, e) => `${elName(e)} ${c}`).join(", ")} · ${U.favH}: ${elName(S.fav.el)}`);
-  if (S.stars.length) L.push(`${U.starsH}: ${S.stars.map(k => T.stars[k][0]).join(", ")}`);
+  if (R.pro){ const X = R.pro, G = X.special ? SJ.special[X.special] : SJ.geok[X.geok];
+    L.push(`${SJ.strengthH}: ${SJ.bands[X.band][0]} (${X.score}) · ${SJ.geokH}: ${G[0]}${X.special ? "" : ` (${SJ.geokGrade[X.geokGrade][0]}${X.ok.length ? ", " + X.ok.map(k => SJ.ok[k][0]).join(", ") : ""}${X.bad.length ? ", " + X.bad.map(k => SJ.bad[k][0]).join(", ") : ""})`}`);
+    L.push(`${SJ.roles.yong} ${elName(X.yong)} · ${SJ.roles.hee} ${elName(X.hee)} · ${SJ.roles.gi} ${elName(X.gi)} · ${SJ.roles.gu} ${elName(X.gu)} — ${SJ.method[X.method]}`);
+    L.push(`${SJ.elH}: ${X.elPctFull.map((v, e) => `${elName(e)} ${Math.round(v)}%`).join(", ")}`);
+    if (X.rels.length) L.push(`${SJ.relH}: ${X.rels.map(r => `${SJ.rel[r.k][0]} ${r.ch}`).join(", ")}`);
+    if (X.stars.length) L.push(`${SJ.starH}: ${X.stars.map(st => SJ.star[st.k][0]).join(", ")}`);
+    L.push(`${SJ.spouseH}: ${tgN(X.spouseGod)} · ${SJ.wealthH}: ${SJ.wealth[X.wealthType].split(" — ")[0]}`);
+    if (X.luck.length) L.push(`${SJ.luckH}: ${X.luck.map(l => `${l.age}${LANG === "ko" ? "세" : ""} ${gzStr(l.s, l.b)} ${l.score}`).join(" · ")}`);
+    L.push(`${SJ.yearsH}: ${X.years.map(y => `${y.y} ${gzStr(y.s, y.b)} ${y.score}`).join(" · ")}`);
+  } else if (S.stars.length) L.push(`${U.starsH}: ${S.stars.map(k => T.stars[k][0]).join(", ")}`);
   if (R.curLuck) L.push(`${U.luckCur}: ${gzFull(R.curLuck.s, R.curLuck.b)} (${tgN(R.curLuck.tg)})`);
   L.push(`${U.sewoon} ${R.year}: ${gzFull(R.yp.s, R.yp.b)} (${tgN(ENG.tenGod(S.dm, R.yp.s))}) — ${T.tg[ENG.tenGod(S.dm, R.yp.s)].y}`);
   L.push("", `■ ${U.westH}`, `${U.sunL} ${signName(W.pl[0].sign)} ${degStr(W.pl[0].deg)} · ${U.moonL} ${signName(W.pl[1].sign)} ${degStr(W.pl[1].deg)}${W.ang ? ` · ${U.ascL} ${signName(Math.floor(W.ang.asc / 30))} ${degStr(W.ang.asc % 30)}` : ""}`);

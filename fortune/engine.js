@@ -37,9 +37,12 @@ function birthOf(p, opt){
   const place = p.place || {lat:37.5665, lon:126.978, tz:"Asia/Seoul"};
   const utc = localToUtc(y, m, d, hh, mm, place.tz);
   const lun = Solar.fromYmd(y, m, d).getLunar();
-  return {y, m, d, hh, mm, hasTime, place, utc, lunarY:lun.getYear(), lunarM:Math.abs(lun.getMonth()), lunarD:lun.getDay(), lunarLeap:lun.getMonth() < 0, lmtCorr:opt.lmt !== false};
+  return {y, m, d, hh, mm, hasTime, place, utc, lunarY:lun.getYear(), lunarM:Math.abs(lun.getMonth()), lunarD:lun.getDay(), lunarLeap:lun.getMonth() < 0, lmtCorr:opt.lmt !== false, eot:!!opt.eot && opt.lmt !== false, sect:opt.zi === "early" ? 1 : 2};
 }
 
+/* equation of time (minutes), NOAA approximation — apparent minus mean solar time */
+function eqTime(utc){ const d = new Date(utc), n = (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(d.getUTCFullYear(), 0, 0)) / 864e5;
+  const b = 2 * Math.PI * (n - 81) / 364; return 9.87 * Math.sin(2 * b) - 7.53 * Math.cos(b) - 1.5 * Math.sin(b); }
 /* ---------- Saju ---------- */
 function tenGod(dm, stemIdx){
   const a = STEM_EL[dm], b = STEM_EL[stemIdx], same = (dm % 2) === (stemIdx % 2);
@@ -76,9 +79,9 @@ function saju(B, gender){
   const bj = fields(B.utc + 8 * 3600e3);
   const ecBJ = Solar.fromYmdHms(...bj).getLunar().getEightChar();
   let lf;
-  if (B.hasTime) lf = fields(B.lmtCorr ? B.utc + B.place.lon * 4 * 60000 : B.utc + tzOffsetMin(B.utc, B.place.tz) * 60000);
+  if (B.hasTime) lf = fields(B.lmtCorr ? B.utc + (B.place.lon * 4 + (B.eot ? eqTime(B.utc) : 0)) * 60000 : B.utc + tzOffsetMin(B.utc, B.place.tz) * 60000);
   else lf = [B.y, B.m, B.d, 12, 0, 0];
-  const ecL = Solar.fromYmdHms(...lf).getLunar().getEightChar();
+  const ecL = Solar.fromYmdHms(...lf).getLunar().getEightChar(); ecL.setSect(B.sect || 2);
   const gz = [ecBJ.getYear(), ecBJ.getMonth(), ecL.getDay(), B.hasTime ? ecL.getTime() : null];
   const P = gz.map((g, i) => g ? {i, s:si(g[0]), b:bi(g[1])} : null);
   const dm = P[2].s;
@@ -289,5 +292,5 @@ function compute(p, opt){
   out.transit = {jup:Math.floor(lonOf("Jupiter", tr) / 30), sat:Math.floor(lonOf("Saturn", tr) / 30)};
   return out;
 }
-return {compute, daily, compat, tenGod, TG_GROUP, STEMS, BRANCHES, STEM_EL, BR_EL, BR_POL, ELS, branchRel, stemRel, periodScore, yearPillar, localToUtc, tzOffsetMin, DASHA, BODIES};
+return {eqTime, compute, daily, compat, tenGod, TG_GROUP, STEMS, BRANCHES, STEM_EL, BR_EL, BR_POL, ELS, branchRel, stemRel, periodScore, yearPillar, localToUtc, tzOffsetMin, DASHA, BODIES};
 })();
