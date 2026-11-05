@@ -61,7 +61,7 @@ const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, yea
 const TJ = TOJ_TX[LANG], SJ = SJ_TX[LANG];
 const sajuState = {sub:0};
 function renderNav(){
-  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "toj" ? TJ.title : U.nav[n[0]]}</button>`).join("");
+  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t));
 }
 function go(t){ tab = t; renderNav(); VIEWS[t](); window.scrollTo(0, 0); }
@@ -384,16 +384,126 @@ function viewToj(){
   if (st.mode === "month"){ const on = $app.querySelector(".tjm.on"); if (on) setTimeout(() => on.scrollIntoView({block:"center"}), 50); }
 }
 
+/* ---------- CONSULTATION ---------- */
+const CT = CT_TX[LANG];
+const consultState = {topic:null, mode:"love", a:null, b:null};
+const TOPIC_ICON = {compat:"合", business:"財", health:"健", love:"緣", career:"官", move:"移", legal:"訟"};
+function topicGrid(){
+  return `<div class="tgrid">${Object.keys(CT.topics).map(k => `<button class="tcard" data-topic="${k}"><span class="tic">${TOPIC_ICON[k]}</span><b>${CT.topics[k][0]}</b><small>${CT.topics[k][1]}</small></button>`).join("")}</div>`;
+}
+const fmtTxt = (v, ...a) => typeof v === "function" ? v(...a) : (v || "");
+function barChart(items, label, hiFn){
+  return `<div class="mchart">${items.map(it => `<div class="mcol${hiFn && hiFn(it) === 1 ? " best" : hiFn && hiFn(it) === -1 ? " warn" : ""}"><b>${it.score}</b><div class="wb"><i style="height:${it.score}%"></i></div><span>${label(it)}</span></div>`).join("")}</div>`;
+}
+function bestWorst(list, key, fmt, nb, nw){
+  const s = list.slice().sort((a, b) => b[key] - a[key]);
+  return `<div class="lucky"><div><span>${CT.bestL}</span><b>${s.slice(0, nb || 3).map(fmt).join(", ")}</b></div><div><span>${CT.warnL}</span><b>${s.slice(-(nw || 2)).reverse().map(fmt).join(", ")}</b></div></div>`;
+}
+const notesAll = () => store.get("notes", {});
+function notesBlock(pid, topic){
+  const list = (notesAll()[pid] || []).slice().reverse();
+  return sec(CT.notesH, `<textarea class="inp note-in" id="nt" rows="3" placeholder="${CT.notesPh}"></textarea><button class="cta ghost" id="ntsave">${CT.notesSave}</button>
+    <div class="nlist">${list.length ? list.map(n => `<div class="nrow"><small>${new Date(n.d).toLocaleString(LANG === "ko" ? "ko-KR" : "en-US")} · ${CT.topics[n.topic] ? CT.topics[n.topic][0] : ""}</small><p>${esc(n.text).replace(/\n/g, "<br>")}</p><button class="mini ghost" data-ndel="${n.d}">${CT.del}</button></div>`).join("") : `<p class="note">${CT.notesEmpty}</p>`}</div>`, "noprint");
+}
+function bindNotes(pid, topic){
+  const sv = document.getElementById("ntsave"); if (!sv) return;
+  sv.onclick = () => { const t = document.getElementById("nt").value.trim(); if (!t) return; const all = notesAll(); (all[pid] = all[pid] || []).push({d:Date.now(), topic, text:t}); store.set("notes", all); toast(CT.notesSaved); viewConsult(topic); };
+  $app.querySelectorAll("[data-ndel]").forEach(b => b.onclick = () => { if (!b.dataset.arm){ b.dataset.arm = 1; b.textContent = "✕ ?"; return; }
+    const all = notesAll(); all[pid] = (all[pid] || []).filter(n => String(n.d) !== b.dataset.ndel); store.set("notes", all); viewConsult(topic); });
+}
+function personSel(id, cur){ return `<select id="${id}">${people().map(p => `<option value="${p.id}"${p.id === cur ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select>`; }
+function viewConsult(topic){
+  consultState.topic = topic;
+  const ps = people(); if (!ps.length) return needProfile();
+  const cur = active() || ps[0];
+  consultState.a = consultState.a && ps.some(p => p.id === consultState.a) ? consultState.a : cur.id;
+  const pA = ps.find(p => p.id === consultState.a), RA = calc(pA), X = RA.pro;
+  const ymL = it => `${it.m}`, yL = it => `'${String(it.y).slice(2)}`;
+  let body = "", title = CT.topics[topic][0];
+  if (topic === "compat"){
+    if (ps.length < 2) body = `<p class="note">${CT.needTwo}</p>`;
+    else {
+      if (!consultState.b || consultState.b === consultState.a || !ps.some(p => p.id === consultState.b)) consultState.b = (ps.find(p => p.id !== consultState.a) || ps[0]).id;
+      const pB = ps.find(p => p.id === consultState.b), RB = calc(pB), mode = consultState.mode;
+      const C = CONSULT.compat(RA, RB, mode), nA = esc(pA.name), nB = esc(pB.name);
+      const txt = x => { const v = CT.f[x.k]; if (!v) return ""; if (typeof v !== "function") return v; return x.who ? (x.who === "A" ? v(nA, nB) : v(nB, nA)) : v(nA, nB); };
+      const pos = C.f.filter(x => x.v > 0).sort((a, b) => b.v - a.v).map(txt).filter(Boolean), neg = C.f.filter(x => x.v < 0).sort((a, b) => a.v - b.v).map(txt).filter(Boolean);
+      const facts = [[pA, RA], [pB, RB]].map(([p, R]) => `<div><b>${esc(p.name)}</b><span>${X === R.pro ? "" : ""}${gzStr(R.saju.P[2].s, R.saju.P[2].b)} · ${T.animals[R.zod.animal][0]} · ${SJ.roles.yong} ${elName(R.pro.yong)}</span></div>`).join("");
+      body = `<div class="seg mseg">${Object.keys(CT.modes).map(m => `<button data-mode2="${m}"${m === mode ? ' class="on"' : ""}>${CT.modes[m]}</button>`).join("")}</div>
+        <div class="two picks noprint"><label>${CT.clientL}${personSel("ca", consultState.a)}</label><label>${CT.partnerL}${personSel("cb", consultState.b)}</label></div>
+        <div id="crep">
+        <section class="card"><div class="hr">${ring(C.total, 120, "")}<div><p class="lead"><b>${mode === "love" ? CT.aVsB(nA, nB) : `${nA} & ${nB}`}</b></p><p class="tgbig">${CT.grades[mode][C.grade]}</p></div></div>
+          <p>${CT.gradeText[mode][C.grade]}</p><div class="cfacts">${facts}</div></section>
+        ${sec(CT.modes[mode], `<div class="cats">${Object.keys(C.sub).map(k => `<div class="cat wide"><span>${CT.subs[k]}</span>${bar(C.sub[k], 100)}<b>${C.sub[k]}</b></div>`).join("")}</div>`)}
+        ${pos.length ? sec(LANG === "ko" ? "잘 맞는 점" : "What works", pos.map(t => `<div class="row2 pos"><p>＋ ${t}</p></div>`).join("")) : ""}
+        ${neg.length ? sec(LANG === "ko" ? "조심할 점" : "Watch out for", neg.map(t => `<div class="row2 neg"><p>－ ${t}</p></div>`).join("")) : ""}
+        ${sec(CT.windowsH[mode], C.best.length ? C.best.map(w => `<div class="row2"><b>${w.y} · ${gzFull(ENG.yearPillar(w.y).s, ENG.yearPillar(w.y).b)} · ${w.s}</b><p>${w.why.map(k => CT.why[k]).join(" · ") || (LANG === "ko" ? "두 사람 모두 운이 좋은 해" : "both fortunes are strong")}</p></div>`).join("") : `<p class="note">—</p>`)}
+        ${sec(CT.syncH, `<div class="sync">${C.sync.map(x => `<div><span>'${String(x.y).slice(2)}</span><i class="a" style="height:${x.a * 0.8}px"></i><i class="b" style="height:${x.b * 0.8}px"></i></div>`).join("")}</div><div class="slg"><span class="a">${nA}</span><span class="b">${nB}</span></div>`)}
+        ${sec(CT.adviceH, `<ol class="adv">${CT.advice[mode].map(a => `<li>${a}</li>`).join("")}</ol>`)}
+        </div>`;
+    }
+  } else if (topic === "business"){
+    const B = CONSULT.business(RA), E = T.els[X.yong];
+    body = `<div id="crep">${sec(CT.typeH, B.types.map(([k, v], i) => `<div class="row2${i === 0 ? " pos" : ""}"><b>${CT.types[k][0]} · ${v}%</b>${bar(v, 60)}${i < 2 ? `<p>${CT.types[k][1]}</p>` : ""}</div>`).join(""))}
+      ${sec(CT.styleH, `<p>${CT.style[B.style]}</p><h3>${CT.partnerH}</h3><p>${CT.partner[B.partner]}</p><h3>${CT.scaleH}</h3><p>${CT.scale[B.scale]}</p><h3>${SJ.wealthH}</h3><p>${SJ.wealth[X.wealthType]}</p>`)}
+      ${sec(CT.industryH, `<div class="ind"><div><b style="color:${EL_COLOR[X.yong]}">${SJ.roles.yong} · ${elName(X.yong)}</b>${CT.industry[X.yong].map(x => `<span>${x}</span>`).join("")}</div><div><b style="color:${EL_COLOR[X.hee]}">${SJ.roles.hee} · ${elName(X.hee)}</b>${CT.industry[X.hee].map(x => `<span>${x}</span>`).join("")}</div></div>
+        <p class="note">${LANG === "ko" ? "피해야 할 업종 기운" : "Industries to avoid"}: ${elName(X.gi)} — ${CT.industry[X.gi].slice(0, 3).join(", ")}</p>`)}
+      ${sec(CT.brandH, `<p>${CT.brand(E.color, E.nums, E.dir)}</p>`)}
+      ${sec(CT.risksH, B.risks.length ? B.risks.map(k => `<div class="row2 neg"><p>－ ${CT.risks[k]}</p></div>`).join("") : `<p>—</p>`)}
+      ${sec(CT.bizYearsH, barChart(B.years.map(y => ({...y, score:y.biz})), yL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(B.years, "biz", y => `${y.y}`))}
+      ${sec(CT.monthsL, barChart(B.months, ymL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(B.months, "score", m => CT.ym(m.y, m.m)))}</div>`;
+  } else if (topic === "health"){
+    const H = CONSULT.health(RA), O = CT.organ;
+    const organCard = (el, why) => `<div class="organ" style="--c:${EL_COLOR[el]}"><b>${O[el].n}${why ? ` <span class="orb">${CT.why3[why]} · ${Math.round(X.elPctFull[el])}%</span>` : ""}</b>
+      <p><em>${LANG === "ko" ? "관련" : "Systems"}:</em> ${O[el].o}</p><p><em>${LANG === "ko" ? "나타나기 쉬운 신호" : "Typical signs"}:</em> ${O[el].s}</p>
+      <p><em>${LANG === "ko" ? "음식" : "Food"}:</em> ${O[el].food}</p><p><em>${LANG === "ko" ? "운동" : "Exercise"}:</em> ${O[el].ex} · <em>${LANG === "ko" ? "주의 계절" : "Season"}:</em> ${O[el].season}</p><p><em>${LANG === "ko" ? "생활" : "Habits"}:</em> ${O[el].habit}</p></div>`;
+    body = `<p class="note c">${CT.healthDisc}</p><div id="crep">
+      ${sec(CT.constH, `<div class="tm"><span>${LANG === "ko" ? "한(寒)" : "Cold"}</span><div class="mt2"><i style="left:${50 + Math.max(-45, Math.min(45, H.temp))}%"></i></div><span>${LANG === "ko" ? "열(熱)" : "Hot"}</span></div>
+        <div class="tm"><span>${LANG === "ko" ? "조(燥)" : "Dry"}</span><div class="mt2 w"><i style="left:${50 + Math.max(-45, Math.min(45, H.moist))}%"></i></div><span>${LANG === "ko" ? "습(濕)" : "Damp"}</span></div><p class="lead">${CT.const[H.constitution]}</p>`)}
+      ${sec(CT.vulH, (H.top.length ? H.top : H.vul.slice(0, 2)).map(v => organCard(v.el, v.why)).join(""))}
+      ${sec(LANG === "ko" ? `개운 건강법 · 용신 ${elName(X.yong)}` : `Strengthening habits · Useful God ${elName(X.yong)}`, organCard(X.yong, null))}
+      ${H.flags.length ? sec(CT.flagsH, H.flags.map(k => `<div class="row2 neg"><p>${CT.flags[k]}</p></div>`).join("")) : ""}
+      ${sec(CT.healthYearsH, `<div class="yrs">${H.years.map(y => `<div class="yr${y.level === 2 ? " bad" : y.level === 0 ? " good" : ""}"><b>${y.y}</b><span class="han">${STEMS[y.s]}${BR[y.b]}</span><small>${CT.hl[y.level]}</small></div>`).join("")}</div>`)}
+      ${sec(CT.monthsL, barChart(H.months, ymL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(H.months, "score", m => CT.ym(m.y, m.m)))}</div>`;
+  } else {
+    const TP = CONSULT.topic(RA, topic);
+    const whyTxt = it => it.why.map(k => CT.whyM[k]).filter(Boolean).join(" · ");
+    const top = TP.months.slice().sort((a, b) => b.score - a.score);
+    const extra = topic === "love" ? `<h3>${SJ.spouseH}</h3><p>${SJ.spouseGod[X.spouseGod]}</p>` :
+      topic === "move" ? `<div class="lucky"><div><span>${CT.dirL} (${SJ.roles.yong})</span><b>${T.els[X.yong].dir}</b></div><div><span>${CT.dirL} (${SJ.roles.hee})</span><b>${T.els[X.hee].dir}</b></div><div><span>${LANG === "ko" ? "피할 방향" : "Avoid"}</span><b>${T.els[X.gi].dir}</b></div></div>` : "";
+    body = `<div id="crep">${sec(CT.natalL, `<p class="note">${CT.topicIntro[topic]}</p>${TP.natal.map(k => `<div class="row2"><p>• ${CT.natal[k]}</p></div>`).join("")}${extra}`)}
+      ${sec(CT.monthsL, barChart(TP.months, ymL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) +
+        `<h3>${CT.bestL}</h3>${top.slice(0, 3).map(m => `<div class="row2 pos"><b>${CT.ym(m.y, m.m)} · ${gzStr(m.s, m.b)} · ${m.score}</b><p>${whyTxt(m) || "—"}</p></div>`).join("")}
+         <h3>${CT.warnL}</h3>${top.slice(-2).reverse().map(m => `<div class="row2 neg"><b>${CT.ym(m.y, m.m)} · ${gzStr(m.s, m.b)} · ${m.score}</b><p>${whyTxt(m) || "—"}</p></div>`).join("")}`)}
+      ${sec(CT.yearsL, barChart(TP.years, yL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(TP.years, "score", y => `${y.y}`))}</div>`;
+  }
+  const selA = topic === "compat" ? "" : `<div class="who noprint"><span>${CT.clientL}</span>${personSel("ca", consultState.a)}</div>`;
+  $app.innerHTML = `<div class="noprint"><button class="backb" id="cback">${CT.back}</button></div>` + head(title, topic === "compat" ? "" : `${esc(pA.name)} · ${birthLine(pA, RA)}`) + selA + body +
+    `<div class="two rep noprint"><button class="cta" id="cshare">${CT.shareRep}</button><button class="cta ghost" id="cprint">${CT.print}</button></div>` +
+    notesBlock(consultState.a, topic) + `<p class="disc">${CT.disc}</p>`;
+  document.getElementById("cback").onclick = () => { consultState.topic = null; viewPeople(); window.scrollTo(0, 0); };
+  const ca = document.getElementById("ca"); if (ca) ca.onchange = () => { consultState.a = ca.value; viewConsult(topic); };
+  const cb = document.getElementById("cb"); if (cb) cb.onchange = () => { consultState.b = cb.value; viewConsult(topic); };
+  $app.querySelectorAll("[data-mode2]").forEach(b => b.onclick = () => { consultState.mode = b.dataset.mode2; viewConsult(topic); });
+  document.getElementById("cprint").onclick = () => window.print();
+  document.getElementById("cshare").onclick = async () => {
+    const el = document.getElementById("crep"); const text = `X Destiny — ${title}\n${topic === "compat" ? "" : pA.name + "\n"}\n${el ? el.innerText : ""}\n\n※ ${CT.disc}`;
+    if (navigator.share){ try { await navigator.share({title:`X Destiny — ${title}`, text}); return; } catch(e){ if (e && e.name === "AbortError") return; } }
+    toast(await copy(text) ? U.shared : U.copyFail); };
+  bindNotes(consultState.a, topic);
+  window.scrollTo(0, 0);
+}
+
 /* ---------- PEOPLE ---------- */
 function viewPeople(){
   const ps = people(), a = active();
-  $app.innerHTML = head(U.peopleH) + `
+  $app.innerHTML = head(CT.hubH, CT.hubSub) + `
     <div class="plist">${ps.map(p => { const R = calc(p);
       return `<div class="pp${a && a.id === p.id ? " on" : ""}"><div class="pa" style="--c:${EL_COLOR[ENG.STEM_EL[R.saju.dm]]}">${STEMS[R.saju.dm]}</div>
         <div class="pi"><b>${esc(p.name)}</b><small>${R.B.y}.${R.B.m}.${R.B.d}${p.time ? " " + p.time : ""} · ${signName(R.west.pl[0].sign)} · ${T.animals[R.zod.animal][0]}</small></div>
         <div class="pb"><button class="mini" data-use="${p.id}">${a && a.id === p.id ? U.active : U.use}</button><button class="mini ghost" data-edit="${p.id}">${U.edit}</button></div></div>`; }).join("")}</div>
     <button class="cta" id="add">${U.addPerson}</button>
-    ${sec(U.compatH, ps.length < 2 ? `<p>${U.noOthers}</p>` : `<p class="note">${U.compatPick}</p><div class="two"><select id="c1">${ps.map((p, i) => `<option value="${p.id}"${i === 0 ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select><select id="c2">${ps.map((p, i) => `<option value="${p.id}"${i === 1 ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></div><button class="cta ghost" id="cgo">${U.compatGo}</button><div id="cres"></div>`)}
+    ${sec(CT.hubH, topicGrid())}
     ${sec(U.settingsH, `
       <div class="srow"><div>${U.lang}</div><div class="seg" id="lang"><button data-l="en"${LANG === "en" ? ' class="on"' : ""}>EN</button><button data-l="ko"${LANG === "ko" ? ' class="on"' : ""}>한국어</button></div></div>
       <div class="srow"><div>${U.lmtL}<small>${U.lmtS}</small></div><button class="sw${settings.lmt ? " on" : ""}" id="lmt" aria-label="${U.lmtL}"></button></div>
@@ -405,21 +515,14 @@ function viewPeople(){
   $app.querySelectorAll("[data-use]").forEach(b => b.onclick = () => { activeId = b.dataset.use; store.set("active", activeId); go("today"); });
   $app.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => profileForm(people().find(p => p.id === b.dataset.edit)));
   document.getElementById("add").onclick = () => profileForm(null);
-  const cgo = document.getElementById("cgo");
-  if (cgo) cgo.onclick = () => {
-    const A = people().find(p => p.id === document.getElementById("c1").value), B2 = people().find(p => p.id === document.getElementById("c2").value);
-    if (!A || !B2 || A.id === B2.id) return;
-    const C = ENG.compat(calc(A), calc(B2));
-    document.getElementById("cres").innerHTML = `<div class="hr" style="margin-top:14px">${ring(C.score, 110, U.compatScore)}<div><p class="lead"><b>${esc(A.name)}</b> & <b>${esc(B2.name)}</b></p><p class="note">${U.compatScore}</p></div></div>
-      ${C.factors.map(([k, v]) => `<div class="row2 ${v > 0 ? "pos" : "neg"}"><p>${v > 0 ? "＋" : "－"} ${T.cf[k]}</p></div>`).join("")}`;
-  };
+  $app.querySelectorAll("[data-topic]").forEach(b => b.onclick = () => viewConsult(b.dataset.topic));
   document.querySelectorAll("#lang button").forEach(b => b.onclick = () => { if (b.dataset.l === LANG) return; settings.lang = b.dataset.l; saveSettings(); location.reload(); });
   document.getElementById("lmt").onclick = e => { settings.lmt = !settings.lmt; saveSettings(); e.currentTarget.classList.toggle("on"); };
   document.getElementById("eot").onclick = e => { settings.eot = !settings.eot; saveSettings(); e.currentTarget.classList.toggle("on"); };
   document.querySelectorAll("#zi button").forEach(b => b.onclick = () => { settings.zi = b.dataset.z; saveSettings(); document.querySelectorAll("#zi button").forEach(x => x.classList.toggle("on", x === b)); });
   document.getElementById("bigt").onclick = e => { settings.big = !settings.big; saveSettings(); e.currentTarget.classList.toggle("on"); document.documentElement.classList.toggle("big", settings.big); };
   document.getElementById("exp").onclick = async () => {
-    const blob = new Blob([JSON.stringify({app:"xdestiny", v:1, people:people(), settings})], {type:"application/json"});
+    const blob = new Blob([JSON.stringify({app:"xdestiny", v:2, people:people(), settings, notes:store.get("notes", {})})], {type:"application/json"});
     const name = `xdestiny-backup-${new Date().toISOString().slice(0, 10)}.json`;
     try { const f = new File([blob], name, {type:"application/json"}); if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f], title:"X Destiny"}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
     const a2 = document.createElement("a"); a2.href = URL.createObjectURL(blob); a2.download = name; document.body.appendChild(a2); a2.click(); a2.remove(); toast(U.exported);
@@ -427,7 +530,7 @@ function viewPeople(){
   const impf = document.getElementById("impf");
   document.getElementById("imp").onclick = () => impf.click();
   impf.onchange = async () => { try { const d = JSON.parse(await impf.files[0].text()); if (d.app !== "xdestiny") throw 0;
-    const ps2 = people(), ids = new Set(ps2.map(x => x.id)), add = (d.people || []).filter(x => !ids.has(x.id)); store.set("people", ps2.concat(add)); toast(U.imported(add.length)); viewPeople(); }
+    const ps2 = people(), ids = new Set(ps2.map(x => x.id)), add = (d.people || []).filter(x => !ids.has(x.id)); store.set("people", ps2.concat(add)); if (d.notes){ const n = store.get("notes", {}); Object.keys(d.notes).forEach(k => { if (!n[k]) n[k] = d.notes[k]; }); store.set("notes", n); } toast(U.imported(add.length)); viewPeople(); }
     catch(e){ toast(U.badFile); } impf.value = ""; };
 }
 
