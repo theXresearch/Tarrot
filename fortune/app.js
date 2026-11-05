@@ -49,12 +49,14 @@ const NAV = [
   ["today", '<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>'],
   ["saju", '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/>'],
   ["stars", '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>'],
+  ["toj", '<path d="M4 5h16M4 9.5h6.5M13.5 9.5H20M4 14h16M4 18.5h6.5M13.5 18.5H20"/>'],
   ["year", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
   ["people", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1.2-3.6 3.6-5.5 6.5-5.5s5.3 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.6c2.6.1 4.5 1.8 5.5 4.8"/>']
 ];
-const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, year:viewYear, people:viewPeople};
+const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, year:viewYear, people:viewPeople};
+const TJ = TOJ_TX[LANG];
 function renderNav(){
-  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${U.nav[n[0]]}</button>`).join("");
+  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "toj" ? TJ.title : U.nav[n[0]]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t));
 }
 function go(t){ tab = t; renderNav(); VIEWS[t](); window.scrollTo(0, 0); }
@@ -92,12 +94,13 @@ function viewToday(){
     <section class="card hero2"><div class="hr">${ring(D.sc.overall, 132, T.cats.overall)}<div class="cats">${cats.map(k => `<div class="cat"><span>${T.cats[k]}</span>${bar(D.sc[k], 100)}<b>${D.sc[k]}</b></div>`).join("")}</div></div>
       <p class="lead">${U.dayPillar(`<b>${gzFull(D.d.s, D.d.b)}</b>`, `<b>${tgN(D.tg)}</b>`)}</p>
       <p>${T.tg[D.tg].d} ${T.dayRel[D.br] || ""}</p></section>
+    ${tojDayCard(R, now)}
     ${sec(U.moonIn(signName(D.moonSign), D.house), `<p>${T.moonDay[D.house]}</p>`)}
     ${sec(U.numH, `<p>${U.pday(D.pd, T.pd[D.pd])}</p>`)}
     ${sec(U.lucky, `<div class="lucky"><div><span>${U.luckyEl}</span><b style="color:${EL_COLOR[fav]}">${E.n}</b></div><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div>`)}
     ${sec(LANG === "ko" ? "이번 주 흐름" : "The week ahead", `<div class="week">${week.map((w, i) => `<div class="wd${i === 0 ? " on" : ""}"><div class="wb"><i style="height:${w.s}%"></i></div><b>${w.s}</b><span>${w.d.toLocaleDateString(LANG === "ko" ? "ko-KR" : "en-US", {weekday:"short"})}</span></div>`).join("")}</div>`)}
     <p class="disc">${U.disc}</p>`;
-  bindWho();
+  bindWho(); bindTjLinks();
 }
 
 /* ---------- SAJU ---------- */
@@ -216,10 +219,7 @@ function viewYear(){
       ${R.curLuck ? `<p class="note">${U.luckCur}: ${gzFull(R.curLuck.s, R.curLuck.b)} · ${tgN(R.curLuck.tg)}</p>` : ""}</section>
     ${sec(U.monthsH, `<div class="months">${R.months.map(m => `<div class="mo${m.m === nowM ? " on" : ""}"><span>${U.monthName(m.m)}</span><b>${STEMS[m.s]}${BR[m.b]}</b><div class="mb"><i style="width:${m.score}%"></i></div><small>${tgN(m.tg)}</small></div>`).join("")}</div>
       <p class="note">${LANG === "ko" ? "월 기준은 절기(절입일)입니다." : "Months follow the solar terms of the Chinese calendar."}</p>`)}
-    ${sec(U.tojH, `<p class="note">${U.tojIntro}</p><p class="lead">${U.tojCode(`<b class="code">${R.toj.code}</b>`)} · ${U.koreanAge(R.toj.age)}</p>
-      <div class="row2"><b>${U.tojParts[0]} · ${T.toj.upName[R.toj.up]}</b><p>${T.toj.up[R.toj.up]}</p></div>
-      <div class="row2"><b>${U.tojParts[1]}</b><p>${T.toj.mid[R.toj.mid]}</p></div>
-      <div class="row2"><b>${U.tojParts[2]}</b><p>${T.toj.low[R.toj.low]}</p></div><p class="note">${U.tojNote}</p>`)}
+    ${tojYearCard(R)}
     ${sec(U.zodH, `<div class="zod"><span class="zc">${BR[Z.animal]}</span><div><b>${U.yourAnimal}: ${T.animals[Z.animal][0]}</b><p>${T.animals[Z.animal][1]}</p></div></div>
       <p class="lead">${U.zodYear(T.animals[Z.yearBranch][0])}</p><p>${T.zodRel[Z.rel]}</p>
       ${Z.samjae ? `<p class="warn">${T.samjae[Z.samjae]}</p>` : ""}
@@ -230,7 +230,98 @@ function viewYear(){
     ${sec(`${U.nextYear} · ${y + 1}`, `<p class="lead"><b>${gzFull(R.ypNext.s, R.ypNext.b)}</b> · ${tgN(ntg)}</p><p>${T.tg[ntg].y}</p>`)}
     ${reportButtons()}
     <p class="disc">${U.disc}</p>`;
-  bindWho(); bindReport(R);
+  bindWho(); bindReport(R); bindTjLinks();
+}
+
+/* ---------- TOJEONG ---------- */
+const tojState = {mode:"day", dOff:0, wOff:0, yOff:0};
+const LOC = LANG === "ko" ? "ko-KR" : "en-US";
+const midnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const triGlyph = (t, cls) => `<span class="tri ${cls || ""}" style="--c:${EL_COLOR[TOJ.TRI_EL[t]]}">${TOJ.GLYPH[t]}</span>`;
+const yaoLadder = pos => `<div class="ladder" aria-label="${TJ.yaoL} ${pos}">${[6,5,4,3,2,1].map(i => `<i class="${i === pos ? "on" : ""}"><b>${i === 6 ? (LANG === "ko" ? "상" : "6") : i}</b></i>`).join("")}</div>`;
+const gradeChip = g => `<span class="gchip g${g}">${TJ.grades[g]}</span>`;
+const sMD = so => LANG === "ko" ? `${so.getMonth()}/${so.getDay()}` : new Date(so.getYear(), so.getMonth() - 1, so.getDay()).toLocaleDateString(LOC, {month:"short", day:"numeric"});
+function tojDayCard(R, date){
+  const D = TOJ.day(R, date);
+  return `<section class="card"><h2>${TJ.title} · ${TJ.dayTri}</h2>
+    <div class="tjhead">${triGlyph(D.tri, "md")}<div><b>${TJ.dayHead[D.rel]}</b><small>${TJ.tri[D.tri]} · ${TJ.lunarDate(D.lm, D.ld, D.leapM)}</small></div><span class="tjsc">${D.score}</span></div>
+    <p>${TJ.dayText[D.rel][D.v]} ${TJ.zrText[D.zr]}</p><button class="cta ghost" data-tj="day">${TJ.open} →</button></section>`;
+}
+function tojYearCard(R){
+  const Y = TOJ.year(R, TOJ.currentLunarYear());
+  return `<section class="card"><h2>${TJ.title} · ${TJ.lyear(Y.ly)}</h2>
+    <div class="tjhead">${triGlyph(Y.up, "md")}<div><b class="code">${Y.code}</b> ${gradeChip(Y.grade)}<small>${TJ.tri[Y.up]} · ${TJ.age(Y.age)}</small></div><span class="tjsc">${Y.score}</span></div>
+    <p class="poem">${TJ.upImg[Y.up]} ${TJ.midImg[Y.mid]}<br>${TJ.lowImg[Y.low]}</p><p>${TJ.upCore[Y.up]}</p>
+    <button class="cta ghost" data-tj="year">${TJ.open} →</button></section>`;
+}
+function bindTjLinks(){ $app.querySelectorAll("[data-tj]").forEach(b => b.onclick = () => { tojState.mode = b.dataset.tj; tojState.dOff = 0; go("toj"); }); }
+function stepper(label, sub){
+  return `<div class="stepr"><button class="iconb" data-st="-1" aria-label="${TJ.prev}">‹</button><div><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</div><button class="iconb" data-st="1" aria-label="${TJ.next}">›</button></div>`;
+}
+function monthCard(M, isNow){
+  const [h, body] = TJ.mTpl[M.rel][M.v];
+  return `<div class="tjm${isNow ? " on" : ""}" id="tjm${M.m}"><div class="tjmh">${triGlyph(M.tri, "sm")}<div><b>${TJ.monthName(M.m)} · ${h}</b><small>${TJ.range(sMD(M.from), sMD(M.to))}</small></div><span class="tjsc sm">${M.score}</span></div>
+    ${bar(M.score, 100)}<p>${body} ${TJ.yaoMonth[M.yao]}</p>
+    <div class="tjkv"><span>${TJ.focus}: <b>${TJ.triFocus[M.tri]}</b></span><span>${TJ.dirL}: <b>${TJ.dir[M.tri]}</b></span></div></div>`;
+}
+function viewToj(){
+  const p = active(); if (!p) return needProfile();
+  const R = calc(p), st = tojState, today = midnight(new Date());
+  const tabs = ["day","week","month","year"];
+  let body = "";
+  if (st.mode === "day"){
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + st.dOff), D = TOJ.day(R, date);
+    const M = D.Y.months[D.lm - 1];
+    body = stepper(date.toLocaleDateString(LOC, {weekday:"long", month:"long", day:"numeric"}), `${TJ.lunarDate(D.lm, D.ld, D.leapM)} · ${D.gz}${st.dOff ? ` · <a href="#" id="tjtoday">${TJ.today}</a>` : ""}`) + `
+      <section class="card"><div class="tjhero">${triGlyph(D.tri, "lg")}<div><small>${TJ.dayTri}</small><b>${TJ.tri[D.tri]}</b><h3>${TJ.dayHead[D.rel]}</h3></div>${ring(D.score, 96, TJ.score)}</div>
+        <p class="lead">${TJ.dayText[D.rel][D.v]}</p>${TJ.zrText[D.zr] ? `<p>${TJ.zrText[D.zr]}</p>` : ""}<p class="note">${TJ.yaoName[D.yao]} — ${TJ.yaoMonth[D.yao]}</p>
+        <div class="lucky"><div><span>${TJ.doL}</span><b>${TJ.luckyDo[D.tri]}</b></div><div><span>${TJ.avoidL}</span><b>${TJ.avoid[D.tri]}</b></div><div><span>${TJ.dirL}</span><b>${TJ.dir[D.tri]}</b></div><div><span>${TJ.focus}</span><b>${TJ.triFocus[D.tri]}</b></div></div></section>
+      ${sec(`${TJ.thisMonth} · ${TJ.monthName(D.lm)}`, monthCard(M, false))}
+      <p class="note c">${TJ.extNote}</p>`;
+  } else if (st.mode === "week"){
+    const mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) + 7 * st.wOff), W = TOJ.week(R, mon);
+    const f = d => d.toLocaleDateString(LOC, {month:"short", day:"numeric"});
+    body = stepper(`${f(W.days[0].date)} – ${f(W.days[6].date)}`, st.wOff ? `<a href="#" id="tjtoday">${TJ.today}</a>` : "") + `
+      <section class="card"><div class="hr">${ring(W.avg, 104, TJ.weekAvg)}<div><p class="lead">${gradeChip(W.grade)}</p><p>${TJ.weekGrade[W.grade]}</p>
+        <p class="note">${TJ.weekBest}: <b>${W.best.date.toLocaleDateString(LOC, {weekday:"short"})}</b> · ${TJ.weekWarn}: <b>${W.worst.date.toLocaleDateString(LOC, {weekday:"short"})}</b></p></div></div></section>
+      <section class="card"><div class="wlist">${W.days.map(d => { const off = Math.round((d.date - today) / 864e5);
+        return `<button class="wrow${off === 0 ? " on" : ""}" data-off="${off}">${triGlyph(d.tri, "sm")}<div><b>${d.date.toLocaleDateString(LOC, {weekday:"short", month:"numeric", day:"numeric"})} · ${TJ.dayHead[d.rel]}</b><small>${TJ.lunarDate(d.lm, d.ld, d.leapM)} · ${d.gz} · ${TJ.dayText[d.rel][d.v]}</small>${bar(d.score, 100)}</div><span class="tjsc sm">${d.score}</span></button>`; }).join("")}</div></section>
+      <p class="note c">${TJ.extNote}</p>`;
+  } else {
+    const ly = TOJ.currentLunarYear() + st.yOff, Y = TOJ.year(R, ly), nowL = TOJ.lunarOf(new Date()), curM = nowL.getYear() === ly ? Math.abs(nowL.getMonth()) : 0;
+    const ysel = `<div class="seg ysel">${TJ.yearSel.map((t, i) => `<button data-yo="${i}"${st.yOff === i ? ' class="on"' : ""}>${t} · ${TOJ.currentLunarYear() + i}</button>`).join("")}</div>`;
+    const chart = `<div class="mchart">${Y.months.map(m => `<a href="#tjm${m.m}" class="mcol${m.m === curM ? " on" : ""}${Y.best.includes(m.m) ? " best" : ""}${Y.worst.includes(m.m) ? " warn" : ""}"><b>${m.score}</b><div class="wb"><i style="height:${m.score}%"></i></div><span>${m.m}</span></a>`).join("")}</div>`;
+    const bw = `<div class="lucky"><div><span>${TJ.bestM}</span><b>${Y.best.map(TJ.monthName).join(", ")}</b></div><div><span>${TJ.warnM}</span><b>${Y.worst.map(TJ.monthName).join(", ")}</b></div></div>`;
+    if (st.mode === "month"){
+      body = ysel + `<section class="card"><h2>${TJ.monthsH} · ${TJ.lyear(ly)}</h2>${chart}${bw}${Y.leap ? `<p class="note">${TJ.leapNote(Y.leap)}</p>` : ""}</section>
+        <section class="card">${Y.months.map(m => monthCard(m, m.m === curM)).join("")}</section>`;
+    } else {
+      const N = TOJ.year(R, ly + 1);
+      body = ysel + `
+      <section class="card tjyear"><div class="tjhero">${triGlyph(Y.up, "lg")}<div><small>${TJ.lyear(ly)} · ${TJ.age(Y.age)}</small><b class="code big">${Y.code}</b>${gradeChip(Y.grade)}</div>${ring(Y.score, 96, TJ.score)}</div>
+        <p class="poem">${TJ.upImg[Y.up]} ${TJ.midImg[Y.mid]}<br>${TJ.lowImg[Y.low]}</p><p class="lead">${TJ.gradeText[Y.grade]}</p></section>
+      <section class="card"><h2>${LANG === "ko" ? "총론" : "The year at a glance"}</h2>
+        <div class="tjpart">${triGlyph(Y.up, "sm")}<div><b>${TJ.parts[0]} · ${TJ.tri[Y.up]}</b><p>${TJ.upCore[Y.up]}</p></div></div>
+        <div class="tjpart">${yaoLadder(Y.mid)}<div><b>${TJ.parts[1]} · ${TJ.yaoName[Y.mid]}</b><p>${TJ.yaoText[Y.mid]}</p></div></div>
+        <div class="tjpart"><span class="tri sm low">${["","天","地","人"][Y.low]}</span><div><b>${TJ.parts[2]} · ${TJ.lowName[Y.low]}</b><p>${TJ.lowText[Y.low]}</p></div></div></section>
+      ${sec(TJ.domH, TJ.doms.map((n, i) => `<div class="dom"><div class="domh"><b>${n}</b>${bar(Y.dom[i], 100)}<span>${Y.dom[i]}</span></div><p>${TJ.domText[Y.up][i]}</p></div>`).join(""))}
+      ${sec(TJ.advH, `<ol class="adv"><li>${TJ.upAdv[Y.up]}</li><li>${TJ.yaoAdv[Y.mid]}</li><li>${TJ.lowAdv[Y.low]}</li></ol>`)}
+      ${sec(TJ.monthsH, chart + bw + `<button class="cta ghost" data-mode="month">${TJ.monthsH} →</button>`)}
+      ${st.yOff === 0 ? sec(`${TJ.nextYearH} · ${ly + 1}`, `<div class="tjhead">${triGlyph(N.up, "md")}<div><b class="code">${N.code}</b> ${gradeChip(N.grade)}<small>${TJ.tri[N.up]}</small></div><span class="tjsc">${N.score}</span></div><p class="poem">${TJ.upImg[N.up]} ${TJ.midImg[N.mid]}<br>${TJ.lowImg[N.low]}</p>`) : ""}
+      ${sec(LANG === "ko" ? "토정비결이란" : "About Tojeong", `<p>${TJ.intro}</p><p class="note">${TJ.method}</p><p class="note">${TJ.textNote}</p>`)}`;
+    }
+  }
+  $app.innerHTML = head(TJ.title, esc(p.name)) + whoBar(p) + `<div class="seg tjtabs">${tabs.map((t, i) => `<button data-m="${t}"${st.mode === t ? ' class="on"' : ""}>${TJ.tabs[i]}</button>`).join("")}</div>` + body + `<p class="disc">${U.disc}</p>`;
+  bindWho();
+  $app.querySelectorAll(".tjtabs button").forEach(b => b.onclick = () => { st.mode = b.dataset.m; viewToj(); });
+  $app.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { if (st.mode === "day") st.dOff += +b.dataset.st; else st.wOff += +b.dataset.st; viewToj(); });
+  const tt = document.getElementById("tjtoday"); if (tt) tt.onclick = e => { e.preventDefault(); st.dOff = 0; st.wOff = 0; viewToj(); };
+  $app.querySelectorAll("[data-off]").forEach(b => b.onclick = () => { st.mode = "day"; st.dOff = +b.dataset.off; viewToj(); window.scrollTo(0, 0); });
+  $app.querySelectorAll("[data-yo]").forEach(b => b.onclick = () => { st.yOff = +b.dataset.yo; viewToj(); });
+  $app.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { st.mode = b.dataset.mode; viewToj(); window.scrollTo(0, 0); });
+  $app.querySelectorAll(".mcol").forEach(a => a.onclick = e => { e.preventDefault(); const id = a.getAttribute("href").slice(1);
+    if (st.mode !== "month"){ st.mode = "month"; viewToj(); } const el = document.getElementById(id); if (el) el.scrollIntoView({behavior:"smooth", block:"center"}); });
+  if (st.mode === "month"){ const on = $app.querySelector(".tjm.on"); if (on) setTimeout(() => on.scrollIntoView({block:"center"}), 50); }
 }
 
 /* ---------- PEOPLE ---------- */
@@ -347,7 +438,7 @@ function reportText(R){
   L.push("", `■ ${U.vedicH}`, `${U.moonRashi} ${T.rashi[V.moonSign]} · ${U.nakH} ${T.naks[V.nak][0]} (${U.pada(V.pada)}) · ${U.maha} ${T.dashaName[V.maha.lord]}${V.antar ? ` / ${U.antar} ${T.dashaName[V.antar.lord]}` : ""}`);
   L.push("", `■ ${U.zodH}: ${T.animals[R.zod.animal][0]} — ${T.zodRel[R.zod.rel]}${R.zod.samjae ? " " + T.samjae[R.zod.samjae] : ""}`);
   L.push(`■ ${U.numH}: ${U.lifePath} ${R.num.lp}, ${U.persYear} ${R.num.py}${R.num.expr ? `, ${U.expr} ${R.num.expr}` : ""}`);
-  L.push(`■ ${U.tojH}: ${R.toj.code} — ${T.toj.up[R.toj.up]} ${T.toj.mid[R.toj.mid]} ${T.toj.low[R.toj.low]}`);
+  { const TY = TOJ.year(R, TOJ.currentLunarYear()); L.push(`■ ${TJ.title} ${TJ.lyear(TY.ly)}: ${TY.code} (${TJ.grades[TY.grade]}) — ${TJ.upImg[TY.up]} ${TJ.midImg[TY.mid]} ${TJ.lowImg[TY.low]}`, `${TJ.upCore[TY.up]} ${TJ.yaoText[TY.mid]} ${TJ.lowText[TY.low]}`, TY.months.map(m => `${TJ.monthName(m.m)} ${m.score}`).join(" · ")); }
   L.push("", `※ ${U.disc}`);
   return L.join("\n");
 }

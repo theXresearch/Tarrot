@@ -204,9 +204,62 @@ button:focus-visible,select:focus-visible,.inp:focus-visible{outline:2px solid v
 .empty .globe{display:block}
 @keyframes pulse{50%{transform:scale(1.05);box-shadow:0 0 90px #d9b46a77}}
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#f0d79a;color:#1a1530;padding:10px 18px;border-radius:20px;font-weight:600;z-index:99;box-shadow:0 6px 20px #0008;max-width:90vw;text-align:center}
+/* tojeong */
+.tjtabs{margin:4px 0 10px}
+.tri{display:inline-grid;place-items:center;flex:none;font:400 30px/1 "Segoe UI Symbol","Apple Symbols","Noto Sans Symbols 2",sans-serif;color:var(--c);width:48px;height:48px;border-radius:12px;border:1px solid color-mix(in srgb,var(--c) 60%,transparent);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.tri.lg{width:78px;height:78px;font-size:52px;border-radius:18px}
+.tri.md{width:56px;height:56px;font-size:36px}
+.tri.sm{width:40px;height:40px;font-size:24px;border-radius:10px}
+.tri.low{--c:var(--gold);font:600 22px var(--han)}
+.tjhead{display:flex;align-items:center;gap:12px;margin:4px 0 8px}
+.tjhead>div{flex:1;min-width:0}.tjhead b{color:var(--gold2);font-size:1.05em}
+.tjhead small{display:block;color:var(--muted);font-size:12px}
+.tjsc{font:700 30px var(--ser);color:var(--gold2)}.tjsc.sm{font-size:22px}
+.tjhero{display:flex;align-items:center;gap:12px}
+.tjhero>div{flex:1;min-width:0}.tjhero small{display:block;color:var(--muted);font-size:12px}
+.tjhero b{display:block;color:var(--gold2);font-size:15px}.tjhero h3{margin:2px 0 0;font:600 22px var(--ser);color:var(--gold2)}
+.tjhero .code.big{font-size:40px;line-height:1.1}
+.poem{font:italic 500 1.12em/1.55 var(--ser);color:#f3e6c4;border-left:2px solid var(--gold);padding:4px 0 4px 12px;margin:12px 0}
+html[lang=ko] .poem{font-style:normal}
+.gchip{display:inline-block;font:700 11.5px var(--sans);padding:2px 9px;border-radius:10px;margin-left:4px;vertical-align:middle}
+.gchip.g0{background:#e7c785;color:#1a1530}.gchip.g1{background:#7fbf8a;color:#10241a}.gchip.g2{background:#8a93c0;color:#141a3a}.gchip.g3{background:#d98b5f;color:#2a1408}.gchip.g4{background:#b0566a;color:#fff}
+.stepr{display:flex;align-items:center;gap:8px;text-align:center;margin:6px 0}
+.stepr>div{flex:1}.stepr b{display:block;color:var(--gold2)}.stepr small{color:var(--muted);font-size:12px}.stepr a{color:var(--gold)}
+.iconb{width:44px;height:44px;border-radius:22px;border:1px solid var(--line);font-size:26px;line-height:1;color:var(--gold)}
+.tjm{padding:12px 0;border-top:1px solid #ffffff10;scroll-margin:80px}.tjm:first-child{border-top:0}
+.tjm.on{background:#2a265066;border-radius:12px;padding:12px 10px;border:1px solid var(--gold)}
+.tjmh{display:flex;align-items:center;gap:10px;margin-bottom:6px}.tjmh>div{flex:1;min-width:0}
+.tjmh b{color:var(--gold2)}.tjmh small{display:block;color:var(--muted);font-size:12px}
+.tjm p{margin:6px 0 4px;font-size:.95em}
+.tjkv{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)}.tjkv b{color:var(--text);font-weight:600}
+.wlist{display:grid;gap:2px}
+.wrow{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 4px;border-top:1px solid #ffffff10;width:100%}
+.wrow:first-child{border-top:0}.wrow>div{flex:1;min-width:0}
+.wrow b{color:var(--gold2);font-size:14px}.wrow small{display:block;color:var(--muted);font-size:12px;margin:2px 0 5px}
+.wrow.on{background:#2a265066;border-radius:12px}
+.mchart{display:flex;gap:4px;margin:6px 0 10px}
+.mcol{flex:1;text-align:center;font-size:11px;color:var(--muted);text-decoration:none}
+.mcol b{display:block;color:var(--text);font-size:11px}
+.mcol .wb{height:80px}.mcol.on span,.mcol.on b{color:var(--gold2)}
+.mcol.best .wb i{background:linear-gradient(0deg,#3f7a4c,#9bd6a5)}.mcol.warn .wb i{background:linear-gradient(0deg,#7a3f3f,#d99a8a)}
+.mcol.on .wb{outline:1px solid var(--gold)}
+.tjpart{display:flex;gap:12px;padding:10px 0;border-top:1px solid #ffffff10}.tjpart:first-of-type{border-top:0}
+.tjpart b{color:var(--gold2)}.tjpart p{margin:3px 0 0}
+.ladder{flex:none;width:40px;display:grid;gap:3px;align-content:center}
+.ladder i{display:flex;align-items:center;gap:3px;height:7px}
+.ladder i::before{content:"";flex:1;height:4px;border-radius:2px;background:#ffffff26}
+.ladder i b{font:600 8px var(--sans);color:var(--muted);width:9px;text-align:right}
+.ladder i.on::before{background:var(--gold2);box-shadow:0 0 8px #f0d79a99}.ladder i.on b{color:var(--gold2)}
+.dom{padding:8px 0;border-top:1px solid #ffffff10}.dom:first-of-type{border-top:0}
+.domh{display:grid;grid-template-columns:96px 1fr 28px;align-items:center;gap:8px}
+.domh b{color:var(--gold2);font-size:14px}.domh span{text-align:right;font-weight:700}
+.dom p{margin:4px 0 0;font-size:.95em}
+.adv{margin:4px 0;padding-left:22px}.adv li{margin:6px 0}.adv li::marker{color:var(--gold);font-weight:700}
+.ysel{margin:4px 0 10px}
+.note.c{text-align:center}
 /* nav */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;justify-content:center;background:#0a0e24f2;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-.nav button{flex:1;max-width:112px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;color:var(--muted);font-size:11px;min-height:56px}
+.nav button{flex:1;max-width:96px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;color:var(--muted);font-size:11px;min-height:56px}
 .nav svg{width:24px;height:24px}
 .nav button.on{color:var(--gold2)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -218,9 +271,10 @@ button:focus-visible,select:focus-visible,.inp:focus-visible{outline:2px solid v
 <script src="vendor/lunar.js?v=1"></script>
 <script src="vendor/astronomy.min.js?v=1"></script>
 <script src="engine.js?v=1"></script>
+<script src="tojeong.js?v=3"></script>
 <script src="cities.js?v=1"></script>
 <script src="text_en.js?v=1"></script>
 <script src="text_ko.js?v=1"></script>
-<script src="app.js?v=1"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>
