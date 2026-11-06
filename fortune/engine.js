@@ -292,5 +292,5 @@ function compute(p, opt){
   out.transit = {jup:Math.floor(lonOf("Jupiter", tr) / 30), sat:Math.floor(lonOf("Saturn", tr) / 30)};
   return out;
 }
-return {eqTime, compute, daily, compat, tenGod, TG_GROUP, STEMS, BRANCHES, STEM_EL, BR_EL, BR_POL, ELS, branchRel, stemRel, periodScore, yearPillar, localToUtc, tzOffsetMin, DASHA, BODIES};
+return {eqTime, BR_MAIN_STEM, compute, daily, compat, tenGod, TG_GROUP, STEMS, BRANCHES, STEM_EL, BR_EL, BR_POL, ELS, branchRel, stemRel, periodScore, yearPillar, localToUtc, tzOffsetMin, DASHA, BODIES};
 })();

@@ -48,22 +48,20 @@ function calc(p){
 function active(){ const ps = people(); return ps.find(p => p.id === activeId) || ps[0] || null; }
 
 /* ---------- nav ---------- */
-let tab = (new URLSearchParams(location.search).get("tab") === "pic") ? "pic" : "today";
+let tab = "today";
 const NAV = [
   ["today", '<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>'],
   ["saju", '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/>'],
   ["stars", '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>'],
   ["toj", '<path d="M4 5h16M4 9.5h6.5M13.5 9.5H20M4 14h16M4 18.5h6.5M13.5 18.5H20"/>'],
-  ["pic", '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 16l2.5-3 2 2 3-4 2.5 5"/><circle cx="9.5" cy="8" r="1.4"/>'],
   ["year", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
   ["people", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1.2-3.6 3.6-5.5 6.5-5.5s5.3 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.6c2.6.1 4.5 1.8 5.5 4.8"/>']
 ];
-const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, pic:viewPic, year:viewYear, people:viewPeople};
-function viewPic(){ const p = active(); if (!p) return needProfile(); PICTURE.render($app, calc(p), p, LANG, head(LANG === "ko" ? "그림 사주" : "Picture Saju", LANG === "ko" ? "사주를 81장의 인생 카드로 읽습니다" : "Your saju read as 81 life cards"), whoBar(p), bindWho); }
+const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, year:viewYear, people:viewPeople};
 const TJ = TOJ_TX[LANG], SJ = SJ_TX[LANG];
 const sajuState = {sub:0};
 function renderNav(){
-  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "pic" ? (LANG === "ko" ? "그림사주" : "Picture") : n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
+  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t));
 }
 function go(t){ tab = t; renderNav(); VIEWS[t](); window.scrollTo(0, 0); }
@@ -91,23 +89,24 @@ const bar = (v, max, color) => `<div class="bar"><i style="width:${Math.max(3, v
 const chip = (txt, color) => `<span class="chip" style="--c:${color}">${txt}</span>`;
 
 /* ---------- TODAY ---------- */
+const RK = {yong:"yong", hee:"hee", gi:"gi", gu:"gu", han:"han"};
+const BRN = LANG === "ko" ? {liuhe:"육합", sanhe:"반합", chong:"충", hai:"해", same:"같은 지지"} : {liuhe:"six-harmony", sanhe:"half three-harmony", chong:"clash", hai:"harm", same:"same branch"};
+function pillarFacts(R, s, b){
+  const S = R.saju, X = R.pro, dm = S.dm, roleOf = e => SJ.roles[X.roleName ? X.roleName(e) : ""] || "";
+  const rel = [0,1,2,3].filter(i => S.P[i]).map(i => { const k = ENG.branchRel(S.P[i].b, b); return k ? `${U.pillars[i]} ${BR[S.P[i].b]} — ${BRN[k]}` : ""; }).filter(Boolean);
+  return `<div class="lucky"><div><span>${LANG === "ko" ? "천간 십성" : "Stem god"}</span><b>${tgN(ENG.tenGod(dm, s))}</b></div><div><span>${LANG === "ko" ? "지지 십성" : "Branch god"}</span><b>${tgN(ENG.tenGod(dm, ENG.BR_MAIN_STEM(b)))}</b></div><div><span>${U.stageL}</span><b>${T.stages[PRO.stage(dm, b)]}</b></div></div>
+    <p class="note">${LANG === "ko" ? "오행 역할" : "Element roles"}: ${STEMS[s]} ${elName(ENG.STEM_EL[s])} → ${roleOf(ENG.STEM_EL[s])} · ${BR[b]} ${elName(ENG.BR_EL[b])} → ${roleOf(ENG.BR_EL[b])}</p>
+    ${rel.length ? `<p class="note">${LANG === "ko" ? "원국과의 관계" : "With the natal chart"}: ${rel.join(" · ")}</p>` : ""}`;
+}
 function viewToday(){
   const p = active(); if (!p) return needProfile();
-  const R = calc(p), now = new Date(), D = ENG.daily(R, now);
-  const fav = R.saju.fav.el, E = T.els[fav];
-  const week = Array.from({length:7}, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i); return {d, s:ENG.daily(R, d).sc.overall}; });
-  const cats = ["love","money","work","health"];
+  const R = calc(p), now = new Date(), D = ENG.daily(R, now), X = R.pro;
+  const E = T.els[X.yong];
   $app.innerHTML = head(U.todayH, now.toLocaleDateString(LANG === "ko" ? "ko-KR" : "en-US", {weekday:"long", year:"numeric", month:"long", day:"numeric"})) + whoBar(p) + `
-    <section class="card hero2"><div class="hr">${ring(D.sc.overall, 132, T.cats.overall)}<div class="cats">${cats.map(k => `<div class="cat"><span>${T.cats[k]}</span>${bar(D.sc[k], 100)}<b>${D.sc[k]}</b></div>`).join("")}</div></div>
-      <p class="lead">${U.dayPillar(`<b>${gzFull(D.d.s, D.d.b)}</b>`, `<b>${tgN(D.tg)}</b>`)}</p>
-      <p>${T.tg[D.tg].d} ${T.dayRel[D.br] || ""}</p></section>
-    ${tojDayCard(R, now)}
-    ${sec(U.moonIn(signName(D.moonSign), D.house), `<p>${T.moonDay[D.house]}</p>`)}
-    ${sec(U.numH, `<p>${U.pday(D.pd, T.pd[D.pd])}</p>`)}
-    ${sec(U.lucky, `<div class="lucky"><div><span>${U.luckyEl}</span><b style="color:${EL_COLOR[fav]}">${E.n}</b></div><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div>`)}
-    ${sec(LANG === "ko" ? "이번 주 흐름" : "The week ahead", `<div class="week">${week.map((w, i) => `<div class="wd${i === 0 ? " on" : ""}"><div class="wb"><i style="height:${w.s}%"></i></div><b>${w.s}</b><span>${w.d.toLocaleDateString(LANG === "ko" ? "ko-KR" : "en-US", {weekday:"short"})}</span></div>`).join("")}</div>`)}
+    ${sec(`${LANG === "ko" ? "일진" : "Day pillar"} · ${gzFull(D.d.s, D.d.b)}`, pillarFacts(R, D.d.s, D.d.b))}
+    ${sec(`${SJ.roles.yong} · ${elName(X.yong)}`, `<div class="lucky"><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div><p class="note">${LANG === "ko" ? "오행의 오방색·하도수·방위 대응" : "Classical five-element colour, Hetu number and direction"}</p>`)}
     <p class="disc">${U.disc}</p>`;
-  bindWho(); bindTjLinks();
+  bindWho();
 }
 
 /* ---------- SAJU ---------- */
@@ -137,8 +136,7 @@ function viewSaju(){
         <div class="legend"><span>${U.stem}·${U.branch}</span><span>${U.hidden}</span><span>${U.stageL}</span><span>${LANG === "ko" ? "12신살·납음" : "spirit star · nayin"}</span></div></section>
       ${sec(`${SJ.ilju} · ${X.dayGZ} (${gzRead(S.P[2].s, S.P[2].b)})`, `<div class="dmh" style="--c:${EL_COLOR[ENG.STEM_EL[dm]]}"><span class="big">${STEMS[dm]}</span><div><b>${T.dm[dm][0]}</b><small>${T.yy[dm % 2]} ${elName(ENG.STEM_EL[dm])}</small></div></div>
         <p class="lead">${SJ.iljuLine(X.dayGZ, T.dm[dm][0], SJ.iljuImg[S.P[2].b], tgN(S.P[2].tgB), SJ.stageText[X.dayStage].split(" — ")[0])}</p><p>${T.dm[dm][1]}</p>${flags ? `<ul class="bul">${flags}</ul>` : ""}`)}
-      ${sec(SJ.strengthH, `<div class="meter"><div class="mt"><i style="left:${Math.min(98, Math.max(2, X.score))}%"></i></div><div class="ml">${SJ.bands.map(b => `<span>${b[0].split("(")[0]}</span>`).join("")}</div></div>
-        <p class="lead"><b>${SJ.bands[X.band][0]}</b> · ${SJ.scoreL} ${X.score}</p><p>${SJ.bands[X.band][1]}</p>
+      ${sec(SJ.strengthH, `<p class="lead"><b>${SJ.bands[X.band][0]}</b></p><p>${SJ.bands[X.band][1]}</p>
         <div class="deuk">${deuk.map((v, i) => `<div class="${v ? "y" : "n"}"><b>${SJ.deuk[i]}</b><span>${i === 3 ? (v ? SJ.roots(X.roots.length) : SJ.no) : v ? SJ.yes : SJ.no}</span><small>${SJ.deukText[i]}</small></div>`).join("")}</div>`)}
       ${sec(SJ.elH, `<div class="els">${X.elPctFull.map((v, e) => `<div class="er"><span style="color:${EL_COLOR[e]}">${elName(e)}</span>${bar(v, 50, EL_COLOR[e])}<b class="pc2">${Math.round(v)}%</b></div>`).join("")}</div>`)}
       ${sec(SJ.tgH, `<div class="tgg">${Object.keys(X.tgW).map(k => `<div class="er"><span>${tgN(k)}</span>${bar(X.tgW[k], 40)}<b class="pc2">${Math.round(X.tgW[k])}%</b></div>`).join("")}</div>
@@ -157,10 +155,10 @@ function viewSaju(){
         ${X.bad.map(k => `<div class="row2 neg"><b>✕ ${SJ.bad[k][0]}</b><p>${SJ.bad[k][1]}</p></div>`).join("")}`}
         ${!X.special ? `<p class="note">${SJ.careerH}: ${G[2]}</p>` : ""}`)}
       ${sec(SJ.yongH, `<div class="roles">${R5.filter(r => roleEl[r] !== undefined).map(r => `<div class="rl r-${r}"><span>${SJ.roles[r]}</span><b style="color:${EL_COLOR[roleEl[r]]}">${elName(roleEl[r])}</b><small>${T.groups[X.groupOfEl(roleEl[r])]}</small></div>`).join("")}</div>
-        <p class="lead">${SJ.method[X.method]}</p>${X.method === "johu" ? `<p>${SJ.johuNote[X.johuNeed]}</p>` : X.johuNeed !== null && X.method !== "jong" ? `<p class="note">${SJ.johuMinor[X.johuNeed]}</p>` : ""}
+        <p class="lead">${SJ.method[X.method]}</p>
         ${R5.filter(r => roleEl[r] !== undefined).map(r => `<div class="row2"><b>${SJ.roles[r]} · ${elName(roleEl[r])}</b><p>${SJ.roleText[r]}</p></div>`).join("")}`)}
       ${sec(`${SJ.yongUse} · ${elName(X.yong)}`, `<div class="lucky"><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div>
-        <p><b>${LANG === "ko" ? "어울리는 분야" : "Fitting fields"}:</b> ${SJ.elFields[X.yong]}</p><p><b>${LANG === "ko" ? "생활 속 개운법" : "Everyday luck habits"}:</b> ${SJ.elHabits[X.yong]}</p>`)}`;
+`)}`;
   } else if (sub === 2){
     const posLabel = pos => pos.map(pn).join("·");
     body = `${sec(SJ.relH, X.rels.length ? X.rels.map(r => `<div class="row2 ${["chong","hyeong","samhyeong","jahyeong","pa","hai","wonjin","stemChong"].includes(r.k) ? "neg" : ["gwimun"].includes(r.k) ? "" : "pos"}"><b>${SJ.rel[r.k][0]} · <span class="han">${r.ch}</span>${r.el != null ? ` → ${elName(r.el)}` : ""} <span class="orb">${posLabel(r.pos)} (${SJ.pairs[r.pos.join("")] || ""})</span></b><p>${SJ.rel[r.k][1]}</p></div>`).join("") : `<p>${SJ.relNone}</p>`)}
@@ -174,37 +172,21 @@ function viewSaju(){
     const kinKeys = ["spouse","children","father","mother","siblings"];
     const kin = kinKeys.map(k => { const K = X.kin[k], where = [...new Set(K.loc.filter(l => l.at !== "h").map(l => pn(l.i)))].join("·");
       const star = k === "spouse" || k === "children" ? SJ.kinStar(p.gender, k) : k === "father" ? tgN("piancai") : k === "mother" ? `${tgN("zhengyin")}·${tgN("pianyin")}` : `${tgN("bijian")}·${tgN("jiecai")}`;
-      return `<div class="row2"><b>${SJ.kin[k]} <span class="orb">${star} · ${K.w}%${where ? ` · ${where}` : ""}</span></b>${bar(K.w, 40)}<p>${SJ.kinLevel[K.level]}${K.clash ? " " + SJ.kinClash : ""}${K.empty ? " " + SJ.kinEmpty : ""}</p></div>`; }).join("");
+      return `<div class="row2"><b>${SJ.kin[k]} <span class="orb">${star}${where ? ` · ${where}` : ""}</span></b><p>${SJ.kinLevel[K.level]}${K.clash ? " " + SJ.kinClash : ""}${K.empty ? " " + SJ.kinEmpty : ""}</p></div>`; }).join("");
     body = `${sec(SJ.palaceH, pal)}
       ${sec(SJ.spouseH, `<p class="lead"><b>${BR[S.P[2].b]} · ${tgN(X.spouseGod)}</b></p><p>${SJ.spouseGod[X.spouseGod]}</p>${[...new Set(X.dayHit)].map(k => SJ.dayHitText[k] ? `<p class="note">• ${SJ.dayHitText[k]}</p>` : "").join("")}`)}
       ${sec(SJ.kinH, (p.gender ? "" : `<p class="note">${SJ.kinNoGender}</p>`) + kin)}`;
-  } else if (sub === 4){
-    const tone = sc => SJ.luckTone.find(([t]) => sc >= t)[1];
+  } else {
     const relLines = rel => rel.map(([k, i]) => SJ.luckRelText(k, pn(i))).filter(Boolean);
     body = sec(SJ.luckH, X.luck.length ? X.luck.map(L => `<div class="lkd${L.now ? " on" : ""}"><div class="lkh"><span class="lkgz"><b style="color:${EL_COLOR[ENG.STEM_EL[L.s]]}">${STEMS[L.s]}</b><b style="color:${EL_COLOR[ENG.BR_EL[L.b]]}">${BR[L.b]}</b></span>
-        <div><b>${SJ.ageL(L.age)} · ${L.y0}–${L.y1}${L.now ? ` <em class="nowb">${SJ.nowLuck}</em>` : ""}</b><small>${tgN(L.tg)} / ${tgN(L.tgB)} · ${SJ.luckRole(L.rs, L.rb, SJ.roles)} · ${T.stages[L.stage]}</small></div><span class="tjsc sm">${L.score}</span></div>
-        ${bar(L.score, 100)}<p>${tone(L.score)} <b>${tgN(L.tg)}</b> — ${T.tg[L.tg].t}</p>${relLines(L.rel).length ? `<p class="note">${relLines(L.rel).join(" · ")}</p>` : ""}</div>`).join("") : `<p>${U.noLuck}</p>`)
-      + sec(SJ.yearsH, `<div class="yrs">${X.years.map(Y => `<div class="yr${Y.score >= 72 ? " good" : Y.score < 45 ? " bad" : ""}"><b>${Y.y}</b><span class="han">${STEMS[Y.s]}${BR[Y.b]}</span><small>${tgN(Y.tg)}</small><div class="mb"><i style="width:${Y.score}%"></i></div><em>${Y.score}</em></div>`).join("")}</div>
-        ${X.years.slice(0, 3).map(Y => `<div class="row2"><b>${Y.y} ${gzFull(Y.s, Y.b)} · ${SJ.yearAge(Y.age)} · ${Y.score}</b><p>${tone(Y.score)} ${T.tg[Y.tg].y}${relLines(Y.rel).length ? ` <span class="note">(${relLines(Y.rel).join(" · ")})</span>` : ""}</p></div>`).join("")}`);
-  } else {
-    const G = X.special ? SJ.special[X.special] : SJ.geok[X.geok];
-    const cur = X.luck.find(l => l.now), tone = sc => SJ.luckTone.find(([t]) => sc >= t)[1];
-    const sumTxt = SJ.summary({ilju:`${X.dayGZ}(${T.dm[dm][0]})`, band:SJ.bands[X.band][0], geok:G[0], grade:X.special ? "—" : SJ.geokGrade[X.geokGrade][0], yong:elName(X.yong), hee:elName(X.hee), gi:elName(X.gi),
-      luck:cur ? SJ.luckSum(gzStr(cur.s, cur.b), cur.score, tone(cur.score)) : ""});
-    const top2 = X.domGroup.slice(0, 2);
-    const ys = X.years.slice(1), good = ys.filter(y => y.score >= 70).slice(0, 4).map(y => y.y), badY = ys.filter(y => y.score < 45).slice(0, 3).map(y => y.y);
-    body = `${sec(SJ.summaryH, `<p class="lead">${sumTxt}</p>`)}
-      ${sec(SJ.personaH, `<p>${T.dm[dm][1]}</p><p>${SJ.groupPersona[top2[0]]} ${SJ.groupPersona[top2[1]]}</p><p class="note">${G[1]}</p>`)}
-      ${sec(SJ.careerH, `${!X.special ? `<p><b>${G[0]}</b> — ${G[2]}</p>` : ""}<p>${top2.map(g => `<b>${T.groups[g]}</b>: ${SJ.groupCareer[g]}`).join("<br>")}</p><p class="note">${LANG === "ko" ? "용신 분야" : "Useful God fields"}: ${SJ.elFields[X.yong]}</p>`)}
-      ${sec(SJ.wealthH, `<p>${SJ.wealth[X.wealthType]}</p>`)}
-      ${sec(SJ.healthH, X.health.length ? X.health.map(h => `<p>• ${SJ.healthLine(elName(h.e), h.t, SJ.organs[h.e])}</p>`).join("") + `<p class="note">${LANG === "ko" ? `기신 ${elName(X.gi)} — ${SJ.organs[X.gi]} 계통을 평소 관리하십시오.` : `Unfavourable element ${elName(X.gi)} — keep an eye on your ${SJ.organs[X.gi]}.`}</p>` : `<p>${SJ.healthOk}</p>`)}
-      ${sec(SJ.keyH, `<div class="lucky"><div><span>${SJ.nextGood}</span><b>${good.join(", ") || "—"}</b></div><div><span>${SJ.nextBad}</span><b>${badY.join(", ") || "—"}</b></div></div>
-        <p class="note">${SJ.settingsNote}</p>`)}
-      ${reportButtons()}`;
+        <div><b>${SJ.ageL(L.age)} · ${L.y0}–${L.y1}${L.now ? ` <em class="nowb">${SJ.nowLuck}</em>` : ""}</b><small>${tgN(L.tg)} / ${tgN(L.tgB)} · ${SJ.luckRole(L.rs, L.rb, SJ.roles)} · ${T.stages[L.stage]}</small></div></div>
+        ${relLines(L.rel).length ? `<p class="note">${relLines(L.rel).join(" · ")}</p>` : ""}</div>`).join("") : `<p>${U.noLuck}</p>`)
+      + sec(SJ.yearsH, X.years.map(Y => `<div class="row2"><b>${Y.y} ${gzFull(Y.s, Y.b)} · ${SJ.yearAge(Y.age)}</b><p>${tgN(Y.tg)}${relLines(Y.rel).length ? ` · ${relLines(Y.rel).join(" · ")}` : ""}</p></div>`).join(""))
+      + reportButtons();
   }
   $app.innerHTML = head(U.sajuH, `${esc(p.name)} · ${birthLine(p, R)}`) + whoBar(p) + tabs + body + `<p class="disc">${U.disc}</p>`;
   bindWho(); bindReport(R);
-  $app.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sajuState.sub = +b.dataset.sub; viewSaju(); const t = $app.querySelector(".subtabs .on"); if (t) t.scrollIntoView({inline:"center", block:"nearest"}); });
+  $app.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sajuState.sub = Math.min(4, +b.dataset.sub); viewSaju(); const t = $app.querySelector(".subtabs .on"); if (t) t.scrollIntoView({inline:"center", block:"nearest"}); });
 }
 const toHanja = x => x;
 function birthLine(p, R){
@@ -270,120 +252,41 @@ function viewStars(){
 /* ---------- YEAR ---------- */
 function viewYear(){
   const p = active(); if (!p) return needProfile();
-  const R = calc(p), S = R.saju, y = R.year, yp = R.yp, tg = ENG.tenGod(S.dm, yp.s);
-  const ys = ENG.periodScore(S, yp.s, yp.b), rel = ENG.branchRel(S.P[2].b, yp.b);
+  const R = calc(p), S = R.saju, y = R.year, yp = R.yp;
   const Z = R.zod, nowM = new Date().getMonth() + 1;
   const jupH = ((R.transit.jup - R.west.pl[0].sign + 12) % 12) + 1, satH = ((R.transit.sat - R.west.pl[0].sign + 12) % 12) + 1;
-  const ntg = ENG.tenGod(S.dm, R.ypNext.s);
   $app.innerHTML = head(U.yearH(y), esc(p.name)) + whoBar(p) + `
-    <section class="card hero2"><div class="hr">${ring(ys, 120, y)}<div><p class="lead">${U.sewoon}: <b>${gzFull(yp.s, yp.b)}</b></p><p class="tgbig">${tgN(tg)}</p></div></div>
-      <p>${T.tg[tg].y}</p>${T.dayRel[rel] ? `<p class="note">${T.dayRel[rel].replace(LANG === "ko" ? "오늘의" : "Today's", LANG === "ko" ? "올해의" : "This year's").replace(LANG === "ko" ? "오늘은" : "today's", LANG === "ko" ? "올해는" : "this year's")}</p>` : ""}
-      ${R.curLuck ? `<p class="note">${U.luckCur}: ${gzFull(R.curLuck.s, R.curLuck.b)} · ${tgN(R.curLuck.tg)}</p>` : ""}</section>
-    ${sec(U.monthsH, `<div class="months">${R.months.map(m => `<div class="mo${m.m === nowM ? " on" : ""}"><span>${U.monthName(m.m)}</span><b>${STEMS[m.s]}${BR[m.b]}</b><div class="mb"><i style="width:${m.score}%"></i></div><small>${tgN(m.tg)}</small></div>`).join("")}</div>
+    ${sec(`${U.sewoon} · ${gzFull(yp.s, yp.b)}`, pillarFacts(R, yp.s, yp.b) + (R.curLuck ? `<p class="note">${U.luckCur}: ${gzFull(R.curLuck.s, R.curLuck.b)} · ${tgN(R.curLuck.tg)}</p>` : ""))}
+    ${sec(U.monthsH, `<div class="months">${R.months.map(m => `<div class="mo${m.m === nowM ? " on" : ""}"><span>${U.monthName(m.m)}</span><b>${STEMS[m.s]}${BR[m.b]}</b><small>${tgN(m.tg)}</small></div>`).join("")}</div>
       <p class="note">${LANG === "ko" ? "월 기준은 절기(절입일)입니다." : "Months follow the solar terms of the Chinese calendar."}</p>`)}
-    ${tojYearCard(R)}
-    ${sec(U.zodH, `<div class="zod"><span class="zc">${BR[Z.animal]}</span><div><b>${U.yourAnimal}: ${T.animals[Z.animal][0]}</b><p>${T.animals[Z.animal][1]}</p></div></div>
-      <p class="lead">${U.zodYear(T.animals[Z.yearBranch][0])}</p><p>${T.zodRel[Z.rel]}</p>
+    ${sec(U.zodH, `<p class="lead">${U.yourAnimal}: <b>${T.animals[Z.animal][0]}</b> · ${U.zodYear(T.animals[Z.yearBranch][0])}${BRN[Z.rel] ? ` — ${BRN[Z.rel]}` : ""}</p>
       ${Z.samjae ? `<p class="warn">${T.samjae[Z.samjae]}</p>` : ""}
       <div class="lucky"><div><span>${U.bestMatch}</span><b>${Z.best.map(b => T.animals[b][0]).join(", ")}</b></div><div><span>${U.clash}</span><b>${T.animals[Z.worst][0]}</b></div></div>`)}
-    ${sec(U.numH, `<div class="lucky"><div><span>${U.lifePath}</span><b class="num">${R.num.lp}</b></div><div><span>${U.persYear}</span><b class="num">${R.num.py}</b></div>${R.num.expr ? `<div><span>${U.expr}</span><b class="num">${R.num.expr}</b></div>` : ""}</div>
-      <p><b>${U.lifePath} ${R.num.lp}</b> — ${T.lp[R.num.lp]}</p><p><b>${U.persYear} ${R.num.py}</b> — ${T.py[R.num.py]}</p>${R.num.expr ? `<p><b>${U.expr} ${R.num.expr}</b> — ${T.lp[R.num.expr]}</p>` : ""}`)}
     ${sec(U.transitH, `<p>${U.jupLine(signName(R.transit.jup), jupH, T.houses[jupH - 1])}</p><p>${U.satLine(signName(R.transit.sat), satH, T.houses[satH - 1])}</p>`)}
-    ${sec(`${U.nextYear} · ${y + 1}`, `<p class="lead"><b>${gzFull(R.ypNext.s, R.ypNext.b)}</b> · ${tgN(ntg)}</p><p>${T.tg[ntg].y}</p>`)}
+    ${sec(`${U.nextYear} · ${y + 1}`, pillarFacts(R, R.ypNext.s, R.ypNext.b))}
     ${reportButtons()}
     <p class="disc">${U.disc}</p>`;
-  bindWho(); bindReport(R); bindTjLinks();
+  bindWho(); bindReport(R);
 }
 
 /* ---------- TOJEONG ---------- */
-const tojState = {mode:"day", dOff:0, wOff:0, yOff:0};
-const LOC = LANG === "ko" ? "ko-KR" : "en-US";
-const midnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const triGlyph = (t, cls) => `<span class="tri ${cls || ""}" style="--c:${EL_COLOR[TOJ.TRI_EL[t]]}">${TOJ.GLYPH[t]}</span>`;
-const yaoLadder = pos => `<div class="ladder" aria-label="${TJ.yaoL} ${pos}">${[6,5,4,3,2,1].map(i => `<i class="${i === pos ? "on" : ""}"><b>${i === 6 ? (LANG === "ko" ? "상" : "6") : i}</b></i>`).join("")}</div>`;
-const gradeChip = g => `<span class="gchip g${g}">${TJ.grades[g]}</span>`;
-const sMD = so => LANG === "ko" ? `${so.getMonth()}/${so.getDay()}` : new Date(so.getYear(), so.getMonth() - 1, so.getDay()).toLocaleDateString(LOC, {month:"short", day:"numeric"});
-function tojDayCard(R, date){
-  const D = TOJ.day(R, date);
-  return `<section class="card"><h2>${TJ.title} · ${TJ.dayTri}</h2>
-    <div class="tjhead">${triGlyph(D.tri, "md")}<div><b>${TJ.dayHead[D.rel]}</b><small>${TJ.tri[D.tri]} · ${TJ.lunarDate(D.lm, D.ld, D.leapM)}</small></div><span class="tjsc">${D.score}</span></div>
-    <p>${TJ.dayText[D.rel][D.v]} ${TJ.zrText[D.zr]}</p><button class="cta ghost" data-tj="day">${TJ.open} →</button></section>`;
-}
-function tojYearCard(R){
-  const Y = TOJ.year(R, TOJ.currentLunarYear());
-  return `<section class="card"><h2>${TJ.title} · ${TJ.lyear(Y.ly)}</h2>
-    <div class="tjhead">${triGlyph(Y.up, "md")}<div><b class="code">${Y.code}</b> ${gradeChip(Y.grade)}<small>${TJ.tri[Y.up]} · ${TJ.age(Y.age)}</small></div><span class="tjsc">${Y.score}</span></div>
-    <p class="poem">${TJ.upImg[Y.up]} ${TJ.midImg[Y.mid]}<br>${TJ.lowImg[Y.low]}</p><p>${TJ.upCore[Y.up]}</p>
-    <button class="cta ghost" data-tj="year">${TJ.open} →</button></section>`;
-}
-function bindTjLinks(){ $app.querySelectorAll("[data-tj]").forEach(b => b.onclick = () => { tojState.mode = b.dataset.tj; tojState.dOff = 0; go("toj"); }); }
-function stepper(label, sub){
-  return `<div class="stepr"><button class="iconb" data-st="-1" aria-label="${TJ.prev}">‹</button><div><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</div><button class="iconb" data-st="1" aria-label="${TJ.next}">›</button></div>`;
-}
-function monthCard(M, isNow){
-  const [h, body] = TJ.mTpl[M.rel][M.v];
-  return `<div class="tjm${isNow ? " on" : ""}" id="tjm${M.m}"><div class="tjmh">${triGlyph(M.tri, "sm")}<div><b>${TJ.monthName(M.m)} · ${h}</b><small>${TJ.range(sMD(M.from), sMD(M.to))}</small></div><span class="tjsc sm">${M.score}</span></div>
-    ${bar(M.score, 100)}<p>${body} ${TJ.yaoMonth[M.yao]}</p>
-    <div class="tjkv"><span>${TJ.focus}: <b>${TJ.triFocus[M.tri]}</b></span><span>${TJ.dirL}: <b>${TJ.dir[M.tri]}</b></span></div></div>`;
-}
+const tojState = {yOff:0};
 function viewToj(){
   const p = active(); if (!p) return needProfile();
-  const R = calc(p), st = tojState, today = midnight(new Date());
-  const tabs = ["day","week","month","year"];
-  let body = "";
-  if (st.mode === "day"){
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + st.dOff), D = TOJ.day(R, date);
-    const M = D.Y.months[D.lm - 1];
-    body = stepper(date.toLocaleDateString(LOC, {weekday:"long", month:"long", day:"numeric"}), `${TJ.lunarDate(D.lm, D.ld, D.leapM)} · ${D.gz}${st.dOff ? ` · <a href="#" id="tjtoday">${TJ.today}</a>` : ""}`) + `
-      <section class="card"><div class="tjhero">${triGlyph(D.tri, "lg")}<div><small>${TJ.dayTri}</small><b>${TJ.tri[D.tri]}</b><h3>${TJ.dayHead[D.rel]}</h3></div>${ring(D.score, 96, TJ.score)}</div>
-        <p class="lead">${TJ.dayText[D.rel][D.v]}</p>${TJ.zrText[D.zr] ? `<p>${TJ.zrText[D.zr]}</p>` : ""}<p class="note">${TJ.yaoName[D.yao]} — ${TJ.yaoMonth[D.yao]}</p>
-        <div class="lucky"><div><span>${TJ.doL}</span><b>${TJ.luckyDo[D.tri]}</b></div><div><span>${TJ.avoidL}</span><b>${TJ.avoid[D.tri]}</b></div><div><span>${TJ.dirL}</span><b>${TJ.dir[D.tri]}</b></div><div><span>${TJ.focus}</span><b>${TJ.triFocus[D.tri]}</b></div></div></section>
-      ${sec(`${TJ.thisMonth} · ${TJ.monthName(D.lm)}`, monthCard(M, false))}
-      <p class="note c">${TJ.extNote}</p>`;
-  } else if (st.mode === "week"){
-    const mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) + 7 * st.wOff), W = TOJ.week(R, mon);
-    const f = d => d.toLocaleDateString(LOC, {month:"short", day:"numeric"});
-    body = stepper(`${f(W.days[0].date)} – ${f(W.days[6].date)}`, st.wOff ? `<a href="#" id="tjtoday">${TJ.today}</a>` : "") + `
-      <section class="card"><div class="hr">${ring(W.avg, 104, TJ.weekAvg)}<div><p class="lead">${gradeChip(W.grade)}</p><p>${TJ.weekGrade[W.grade]}</p>
-        <p class="note">${TJ.weekBest}: <b>${W.best.date.toLocaleDateString(LOC, {weekday:"short"})}</b> · ${TJ.weekWarn}: <b>${W.worst.date.toLocaleDateString(LOC, {weekday:"short"})}</b></p></div></div></section>
-      <section class="card"><div class="wlist">${W.days.map(d => { const off = Math.round((d.date - today) / 864e5);
-        return `<button class="wrow${off === 0 ? " on" : ""}" data-off="${off}">${triGlyph(d.tri, "sm")}<div><b>${d.date.toLocaleDateString(LOC, {weekday:"short", month:"numeric", day:"numeric"})} · ${TJ.dayHead[d.rel]}</b><small>${TJ.lunarDate(d.lm, d.ld, d.leapM)} · ${d.gz} · ${TJ.dayText[d.rel][d.v]}</small>${bar(d.score, 100)}</div><span class="tjsc sm">${d.score}</span></button>`; }).join("")}</div></section>
-      <p class="note c">${TJ.extNote}</p>`;
-  } else {
-    const ly = TOJ.currentLunarYear() + st.yOff, Y = TOJ.year(R, ly), nowL = TOJ.lunarOf(new Date()), curM = nowL.getYear() === ly ? Math.abs(nowL.getMonth()) : 0;
-    const ysel = `<div class="seg ysel">${TJ.yearSel.map((t, i) => `<button data-yo="${i}"${st.yOff === i ? ' class="on"' : ""}>${t} · ${TOJ.currentLunarYear() + i}</button>`).join("")}</div>`;
-    const chart = `<div class="mchart">${Y.months.map(m => `<a href="#tjm${m.m}" class="mcol${m.m === curM ? " on" : ""}${Y.best.includes(m.m) ? " best" : ""}${Y.worst.includes(m.m) ? " warn" : ""}"><b>${m.score}</b><div class="wb"><i style="height:${m.score}%"></i></div><span>${m.m}</span></a>`).join("")}</div>`;
-    const bw = `<div class="lucky"><div><span>${TJ.bestM}</span><b>${Y.best.map(TJ.monthName).join(", ")}</b></div><div><span>${TJ.warnM}</span><b>${Y.worst.map(TJ.monthName).join(", ")}</b></div></div>`;
-    if (st.mode === "month"){
-      body = ysel + `<section class="card"><h2>${TJ.monthsH} · ${TJ.lyear(ly)}</h2>${chart}${bw}${Y.leap ? `<p class="note">${TJ.leapNote(Y.leap)}</p>` : ""}</section>
-        <section class="card">${Y.months.map(m => monthCard(m, m.m === curM)).join("")}</section>`;
-    } else {
-      const N = TOJ.year(R, ly + 1);
-      body = ysel + `
-      <section class="card tjyear"><div class="tjhero">${triGlyph(Y.up, "lg")}<div><small>${TJ.lyear(ly)} · ${TJ.age(Y.age)}</small><b class="code big">${Y.code}</b>${gradeChip(Y.grade)}</div>${ring(Y.score, 96, TJ.score)}</div>
-        <p class="poem">${TJ.upImg[Y.up]} ${TJ.midImg[Y.mid]}<br>${TJ.lowImg[Y.low]}</p><p class="lead">${TJ.gradeText[Y.grade]}</p></section>
-      <section class="card"><h2>${LANG === "ko" ? "총론" : "The year at a glance"}</h2>
-        <div class="tjpart">${triGlyph(Y.up, "sm")}<div><b>${TJ.parts[0]} · ${TJ.tri[Y.up]}</b><p>${TJ.upCore[Y.up]}</p></div></div>
-        <div class="tjpart">${yaoLadder(Y.mid)}<div><b>${TJ.parts[1]} · ${TJ.yaoName[Y.mid]}</b><p>${TJ.yaoText[Y.mid]}</p></div></div>
-        <div class="tjpart"><span class="tri sm low">${["","天","地","人"][Y.low]}</span><div><b>${TJ.parts[2]} · ${TJ.lowName[Y.low]}</b><p>${TJ.lowText[Y.low]}</p></div></div></section>
-      ${sec(TJ.domH, TJ.doms.map((n, i) => `<div class="dom"><div class="domh"><b>${n}</b>${bar(Y.dom[i], 100)}<span>${Y.dom[i]}</span></div><p>${TJ.domText[Y.up][i]}</p></div>`).join(""))}
-      ${sec(TJ.advH, `<ol class="adv"><li>${TJ.upAdv[Y.up]}</li><li>${TJ.yaoAdv[Y.mid]}</li><li>${TJ.lowAdv[Y.low]}</li></ol>`)}
-      ${sec(TJ.monthsH, chart + bw + `<button class="cta ghost" data-mode="month">${TJ.monthsH} →</button>`)}
-      ${st.yOff === 0 ? sec(`${TJ.nextYearH} · ${ly + 1}`, `<div class="tjhead">${triGlyph(N.up, "md")}<div><b class="code">${N.code}</b> ${gradeChip(N.grade)}<small>${TJ.tri[N.up]}</small></div><span class="tjsc">${N.score}</span></div><p class="poem">${TJ.upImg[N.up]} ${TJ.midImg[N.mid]}<br>${TJ.lowImg[N.low]}</p>`) : ""}
-      ${sec(LANG === "ko" ? "토정비결이란" : "About Tojeong", `<p>${TJ.intro}</p><p class="note">${TJ.method}</p><p class="note">${TJ.textNote}</p>`)}`;
-    }
-  }
-  $app.innerHTML = head(TJ.title, esc(p.name)) + whoBar(p) + `<div class="seg tjtabs">${tabs.map((t, i) => `<button data-m="${t}"${st.mode === t ? ' class="on"' : ""}>${TJ.tabs[i]}</button>`).join("")}</div>` + body + `<p class="disc">${U.disc}</p>`;
+  const R = calc(p), ly = TOJ.currentLunarYear() + tojState.yOff, C = TOJ.code(R.B, ly), K = LANG === "ko";
+  const row = (a, b) => `<div class="row2"><b>${a}</b><p>${b}</p></div>`;
+  $app.innerHTML = head(TJ.title, esc(p.name)) + whoBar(p) + `
+    <div class="seg ysel">${[0, 1].map(i => `<button data-yo="${i}"${tojState.yOff === i ? ' class="on"' : ""}>${TOJ.currentLunarYear() + i}</button>`).join("")}</div>
+    <section class="card c"><p class="note">${TJ.lyear(ly)}</p><b class="code big">${C.code}</b><p class="lead">${K ? "상괘" : "Upper"} ${C.up} · ${K ? "중괘" : "Middle"} ${C.mid} · ${K ? "하괘" : "Lower"} ${C.low}</p></section>
+    ${sec(K ? "작괘 과정" : "How the reading is drawn",
+      row(`${K ? "상괘" : "Upper"} = ${C.up}`, `(${K ? "세는나이" : "age (Korean count)"} ${C.age} + ${K ? "태세" : "year pillar"} ${C.tyGz} ${C.tyN}) = ${C.age + C.tyN} ÷ 8 → ${K ? "나머지" : "remainder"} ${C.up}`) +
+      row(`${K ? "중괘" : "Middle"} = ${C.mid}`, `(${K ? `당년 생월(음 ${C.bm}월) 날수` : `days in birth month (lunar ${C.bm}) this year`} ${C.days} + ${K ? "월건" : "month pillar"} ${C.mGz} ${C.mN}) = ${C.days + C.mN} ÷ 6 → ${K ? "나머지" : "remainder"} ${C.mid}`) +
+      row(`${K ? "하괘" : "Lower"} = ${C.low}`, `(${K ? "생일" : "birth day"} ${C.bd} + ${K ? "일진" : "day pillar"} ${C.dGz} ${C.dN}) = ${C.bd + C.dN} ÷ 3 → ${K ? "나머지" : "remainder"} ${C.low}`) +
+      `<p class="note">${TJ.method} ${K ? "나머지가 0이면 나누는 수(8·6·3)를 씁니다." : "A remainder of 0 counts as the divisor (8, 6, 3)."}</p>`)}
+    ${sec(K ? "원문" : "Original verse", `<p>${K ? `${C.code}괘의 원문은 정본(원문 수록본)을 확보해 옮긴 뒤 수록합니다. 확인되지 않은 풀이는 싣지 않습니다.` : `The original verse for reading ${C.code} will be added once an authentic edition is transcribed. Unverified interpretations are not shown.`}</p>`)}
+    <p class="disc">${U.disc}</p>`;
   bindWho();
-  $app.querySelectorAll(".tjtabs button").forEach(b => b.onclick = () => { st.mode = b.dataset.m; viewToj(); });
-  $app.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { if (st.mode === "day") st.dOff += +b.dataset.st; else st.wOff += +b.dataset.st; viewToj(); });
-  const tt = document.getElementById("tjtoday"); if (tt) tt.onclick = e => { e.preventDefault(); st.dOff = 0; st.wOff = 0; viewToj(); };
-  $app.querySelectorAll("[data-off]").forEach(b => b.onclick = () => { st.mode = "day"; st.dOff = +b.dataset.off; viewToj(); window.scrollTo(0, 0); });
-  $app.querySelectorAll("[data-yo]").forEach(b => b.onclick = () => { st.yOff = +b.dataset.yo; viewToj(); });
-  $app.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { st.mode = b.dataset.mode; viewToj(); window.scrollTo(0, 0); });
-  $app.querySelectorAll(".mcol").forEach(a => a.onclick = e => { e.preventDefault(); const id = a.getAttribute("href").slice(1);
-    if (st.mode !== "month"){ st.mode = "month"; viewToj(); } const el = document.getElementById(id); if (el) el.scrollIntoView({behavior:"smooth", block:"center"}); });
-  if (st.mode === "month"){ const on = $app.querySelector(".tjm.on"); if (on) setTimeout(() => on.scrollIntoView({block:"center"}), 50); }
+  $app.querySelectorAll("[data-yo]").forEach(b => b.onclick = () => { tojState.yOff = +b.dataset.yo; viewToj(); });
 }
 
 /* ---------- CONSULTATION ---------- */
@@ -429,55 +332,26 @@ function viewConsult(topic){
       const pB = ps.find(p => p.id === consultState.b), RB = calc(pB), mode = consultState.mode;
       const C = CONSULT.compat(RA, RB, mode), nA = esc(pA.name), nB = esc(pB.name);
       const txt = x => { const v = CT.f[x.k]; if (!v) return ""; if (typeof v !== "function") return v; return x.who ? (x.who === "A" ? v(nA, nB) : v(nB, nA)) : v(nA, nB); };
-      const pos = C.f.filter(x => x.v > 0).sort((a, b) => b.v - a.v).map(txt).filter(Boolean), neg = C.f.filter(x => x.v < 0).sort((a, b) => a.v - b.v).map(txt).filter(Boolean);
-      const facts = [[pA, RA], [pB, RB]].map(([p, R]) => `<div><b>${esc(p.name)}</b><span>${X === R.pro ? "" : ""}${gzStr(R.saju.P[2].s, R.saju.P[2].b)} · ${T.animals[R.zod.animal][0]} · ${SJ.roles.yong} ${elName(R.pro.yong)}</span></div>`).join("");
+      const pos = C.f.filter(x => x.v > 0).map(txt).filter(Boolean), neg = C.f.filter(x => x.v < 0).map(txt).filter(Boolean);
+      const facts = [[pA, RA], [pB, RB]].map(([p, R]) => `<div><b>${esc(p.name)}</b><span>${gzStr(R.saju.P[2].s, R.saju.P[2].b)} · ${T.animals[R.zod.animal][0]} · ${SJ.roles.yong} ${elName(R.pro.yong)}</span></div>`).join("");
       body = `<div class="seg mseg">${Object.keys(CT.modes).map(m => `<button data-mode2="${m}"${m === mode ? ' class="on"' : ""}>${CT.modes[m]}</button>`).join("")}</div>
         <div class="two picks noprint"><label>${CT.clientL}${personSel("ca", consultState.a)}</label><label>${CT.partnerL}${personSel("cb", consultState.b)}</label></div>
-        <div id="crep">
-        <section class="card"><div class="hr">${ring(C.total, 120, "")}<div><p class="lead"><b>${mode === "love" ? CT.aVsB(nA, nB) : `${nA} & ${nB}`}</b></p><p class="tgbig">${CT.grades[mode][C.grade]}</p></div></div>
-          <p>${CT.gradeText[mode][C.grade]}</p><div class="cfacts">${facts}</div></section>
-        ${sec(CT.modes[mode], `<div class="cats">${Object.keys(C.sub).map(k => `<div class="cat wide"><span>${CT.subs[k]}</span>${bar(C.sub[k], 100)}<b>${C.sub[k]}</b></div>`).join("")}</div>`)}
-        ${pos.length ? sec(LANG === "ko" ? "잘 맞는 점" : "What works", pos.map(t => `<div class="row2 pos"><p>＋ ${t}</p></div>`).join("")) : ""}
-        ${neg.length ? sec(LANG === "ko" ? "조심할 점" : "Watch out for", neg.map(t => `<div class="row2 neg"><p>－ ${t}</p></div>`).join("")) : ""}
-        ${sec(CT.windowsH[mode], C.best.length ? C.best.map(w => `<div class="row2"><b>${w.y} · ${gzFull(ENG.yearPillar(w.y).s, ENG.yearPillar(w.y).b)} · ${w.s}</b><p>${w.why.map(k => CT.why[k]).join(" · ") || (LANG === "ko" ? "두 사람 모두 운이 좋은 해" : "both fortunes are strong")}</p></div>`).join("") : `<p class="note">—</p>`)}
-        ${sec(CT.syncH, `<div class="sync">${C.sync.map(x => `<div><span>'${String(x.y).slice(2)}</span><i class="a" style="height:${x.a * 0.8}px"></i><i class="b" style="height:${x.b * 0.8}px"></i></div>`).join("")}</div><div class="slg"><span class="a">${nA}</span><span class="b">${nB}</span></div>`)}
-        ${sec(CT.adviceH, `<ol class="adv">${CT.advice[mode].map(a => `<li>${a}</li>`).join("")}</ol>`)}
-        </div>`;
+        <div id="crep"><section class="card"><div class="cfacts">${facts}</div></section>
+        ${pos.length ? sec(LANG === "ko" ? "맞는 점 (합·생·용신 보완)" : "Harmonies", pos.map(t => `<div class="row2 pos"><p>＋ ${t}</p></div>`).join("")) : ""}
+        ${neg.length ? sec(LANG === "ko" ? "부딪는 점 (충·형·원진)" : "Frictions", neg.map(t => `<div class="row2 neg"><p>－ ${t}</p></div>`).join("")) : ""}</div>`;
     }
   } else if (topic === "business"){
-    const B = CONSULT.business(RA), E = T.els[X.yong];
-    body = `<div id="crep">${sec(CT.typeH, B.types.map(([k, v], i) => `<div class="row2${i === 0 ? " pos" : ""}"><b>${CT.types[k][0]} · ${v}%</b>${bar(v, 60)}${i < 2 ? `<p>${CT.types[k][1]}</p>` : ""}</div>`).join(""))}
-      ${sec(CT.styleH, `<p>${CT.style[B.style]}</p><h3>${CT.partnerH}</h3><p>${CT.partner[B.partner]}</p><h3>${CT.scaleH}</h3><p>${CT.scale[B.scale]}</p><h3>${SJ.wealthH}</h3><p>${SJ.wealth[X.wealthType]}</p>`)}
-      ${sec(CT.industryH, `<div class="ind"><div><b style="color:${EL_COLOR[X.yong]}">${SJ.roles.yong} · ${elName(X.yong)}</b>${CT.industry[X.yong].map(x => `<span>${x}</span>`).join("")}</div><div><b style="color:${EL_COLOR[X.hee]}">${SJ.roles.hee} · ${elName(X.hee)}</b>${CT.industry[X.hee].map(x => `<span>${x}</span>`).join("")}</div></div>
-        <p class="note">${LANG === "ko" ? "피해야 할 업종 기운" : "Industries to avoid"}: ${elName(X.gi)} — ${CT.industry[X.gi].slice(0, 3).join(", ")}</p>`)}
-      ${sec(CT.brandH, `<p>${CT.brand(E.color, E.nums, E.dir)}</p>`)}
-      ${sec(CT.risksH, B.risks.length ? B.risks.map(k => `<div class="row2 neg"><p>－ ${CT.risks[k]}</p></div>`).join("") : `<p>—</p>`)}
-      ${sec(CT.bizYearsH, barChart(B.years.map(y => ({...y, score:y.biz})), yL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(B.years, "biz", y => `${y.y}`))}
-      ${sec(CT.monthsL, barChart(B.months, ymL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(B.months, "score", m => CT.ym(m.y, m.m)))}</div>`;
+    body = `<div id="crep">${sec(CT.industryH, `<div class="ind"><div><b style="color:${EL_COLOR[X.yong]}">${SJ.roles.yong} · ${elName(X.yong)}</b>${CT.industry[X.yong].map(x => `<span>${x}</span>`).join("")}</div><div><b style="color:${EL_COLOR[X.hee]}">${SJ.roles.hee} · ${elName(X.hee)}</b>${CT.industry[X.hee].map(x => `<span>${x}</span>`).join("")}</div></div>
+        <p class="note">${LANG === "ko" ? "기신 오행" : "Unfavourable element"}: ${elName(X.gi)} — ${CT.industry[X.gi].slice(0, 3).join(", ")}</p>`)}</div>`;
   } else if (topic === "health"){
     const H = CONSULT.health(RA), O = CT.organ;
-    const organCard = (el, why) => `<div class="organ" style="--c:${EL_COLOR[el]}"><b>${O[el].n}${why ? ` <span class="orb">${CT.why3[why]} · ${Math.round(X.elPctFull[el])}%</span>` : ""}</b>
-      <p><em>${LANG === "ko" ? "관련" : "Systems"}:</em> ${O[el].o}</p><p><em>${LANG === "ko" ? "나타나기 쉬운 신호" : "Typical signs"}:</em> ${O[el].s}</p>
-      <p><em>${LANG === "ko" ? "음식" : "Food"}:</em> ${O[el].food}</p><p><em>${LANG === "ko" ? "운동" : "Exercise"}:</em> ${O[el].ex} · <em>${LANG === "ko" ? "주의 계절" : "Season"}:</em> ${O[el].season}</p><p><em>${LANG === "ko" ? "생활" : "Habits"}:</em> ${O[el].habit}</p></div>`;
-    body = `<p class="note c">${CT.healthDisc}</p><div id="crep">
-      ${sec(CT.constH, `<div class="tm"><span>${LANG === "ko" ? "한(寒)" : "Cold"}</span><div class="mt2"><i style="left:${50 + Math.max(-45, Math.min(45, H.temp))}%"></i></div><span>${LANG === "ko" ? "열(熱)" : "Hot"}</span></div>
-        <div class="tm"><span>${LANG === "ko" ? "조(燥)" : "Dry"}</span><div class="mt2 w"><i style="left:${50 + Math.max(-45, Math.min(45, H.moist))}%"></i></div><span>${LANG === "ko" ? "습(濕)" : "Damp"}</span></div><p class="lead">${CT.const[H.constitution]}</p>`)}
-      ${sec(CT.vulH, (H.top.length ? H.top : H.vul.slice(0, 2)).map(v => organCard(v.el, v.why)).join(""))}
-      ${sec(LANG === "ko" ? `개운 건강법 · 용신 ${elName(X.yong)}` : `Strengthening habits · Useful God ${elName(X.yong)}`, organCard(X.yong, null))}
-      ${H.flags.length ? sec(CT.flagsH, H.flags.map(k => `<div class="row2 neg"><p>${CT.flags[k]}</p></div>`).join("")) : ""}
-      ${sec(CT.healthYearsH, `<div class="yrs">${H.years.map(y => `<div class="yr${y.level === 2 ? " bad" : y.level === 0 ? " good" : ""}"><b>${y.y}</b><span class="han">${STEMS[y.s]}${BR[y.b]}</span><small>${CT.hl[y.level]}</small></div>`).join("")}</div>`)}
-      ${sec(CT.monthsL, barChart(H.months, ymL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(H.months, "score", m => CT.ym(m.y, m.m)))}</div>`;
+    const organCard = el => `<div class="organ" style="--c:${EL_COLOR[el]}"><b>${O[el].n} <span class="orb">${Math.round(X.elPctFull[el])}%</span></b><p><em>${LANG === "ko" ? "관련 장부" : "Systems"}:</em> ${O[el].o}</p></div>`;
+    body = `<p class="note c">${CT.healthDisc}</p><div id="crep">${sec(CT.vulH, (H.top.length ? H.top : H.vul.slice(0, 2)).map(v => organCard(v.el)).join("") + `<p class="note">${LANG === "ko" ? "오행이 지나치거나 모자란 장부 (오행·장부 상응)" : "Organs of the excessive or deficient elements (five-element correspondence)"}</p>`)}</div>`;
   } else {
     const TP = CONSULT.topic(RA, topic);
-    const whyTxt = it => it.why.map(k => CT.whyM[k]).filter(Boolean).join(" · ");
-    const top = TP.months.slice().sort((a, b) => b.score - a.score);
-    const extra = topic === "love" ? `<h3>${SJ.spouseH}</h3><p>${SJ.spouseGod[X.spouseGod]}</p>` :
-      topic === "move" ? `<div class="lucky"><div><span>${CT.dirL} (${SJ.roles.yong})</span><b>${T.els[X.yong].dir}</b></div><div><span>${CT.dirL} (${SJ.roles.hee})</span><b>${T.els[X.hee].dir}</b></div><div><span>${LANG === "ko" ? "피할 방향" : "Avoid"}</span><b>${T.els[X.gi].dir}</b></div></div>` : "";
-    body = `<div id="crep">${sec(CT.natalL, `<p class="note">${CT.topicIntro[topic]}</p>${TP.natal.map(k => `<div class="row2"><p>• ${CT.natal[k]}</p></div>`).join("")}${extra}`)}
-      ${sec(CT.monthsL, barChart(TP.months, ymL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) +
-        `<h3>${CT.bestL}</h3>${top.slice(0, 3).map(m => `<div class="row2 pos"><b>${CT.ym(m.y, m.m)} · ${gzStr(m.s, m.b)} · ${m.score}</b><p>${whyTxt(m) || "—"}</p></div>`).join("")}
-         <h3>${CT.warnL}</h3>${top.slice(-2).reverse().map(m => `<div class="row2 neg"><b>${CT.ym(m.y, m.m)} · ${gzStr(m.s, m.b)} · ${m.score}</b><p>${whyTxt(m) || "—"}</p></div>`).join("")}`)}
-      ${sec(CT.yearsL, barChart(TP.years, yL, it => it.score >= 72 ? 1 : it.score < 45 ? -1 : 0) + bestWorst(TP.years, "score", y => `${y.y}`))}</div>`;
+    const extra = topic === "love" ? `<h3>${SJ.spouseH}</h3><p>${BR[RA.saju.P[2].b]} · ${tgN(X.spouseGod)}</p>` :
+      topic === "move" ? `<div class="lucky"><div><span>${CT.dirL} (${SJ.roles.yong})</span><b>${T.els[X.yong].dir}</b></div><div><span>${CT.dirL} (${SJ.roles.hee})</span><b>${T.els[X.hee].dir}</b></div><div><span>${LANG === "ko" ? "기신 방향" : "Unfavourable"}</span><b>${T.els[X.gi].dir}</b></div></div>` : "";
+    body = `<div id="crep">${sec(CT.natalL, `${TP.natal.map(k => `<div class="row2"><p>• ${CT.natal[k]}</p></div>`).join("")}${extra}`)}</div>`;
   }
   const selA = topic === "compat" ? "" : `<div class="who noprint"><span>${CT.clientL}</span>${personSel("ca", consultState.a)}</div>`;
   $app.innerHTML = `<div class="noprint"><button class="backb" id="cback">${CT.back}</button></div>` + head(title, topic === "compat" ? "" : `${esc(pA.name)} · ${birthLine(pA, RA)}`) + selA + body +
@@ -513,7 +387,7 @@ function viewPeople(){
       <div class="srow col"><div>${SJ.ziL}</div><div class="seg" id="zi"><button data-z="late"${settings.zi !== "early" ? ' class="on"' : ""}>${SJ.ziLate}</button><button data-z="early"${settings.zi === "early" ? ' class="on"' : ""}>${SJ.ziEarly}</button></div></div>
       <div class="srow"><div>${LANG === "ko" ? "큰 글씨" : "Large text"}</div><button class="sw${settings.big ? " on" : ""}" id="bigt" aria-label="Large text"></button></div>`)}
     ${sec(U.backup, `<div class="two"><button class="cta" id="exp">${U.exp}</button><button class="cta ghost" id="imp">${U.imp}</button></div><input type="file" id="impf" accept="application/json,.json" hidden>`)}
-    ${sec(U.aboutH, `<p class="note">${U.about}</p><p><a class="lnk" href="../">${U.tarotLink} →</a></p><p><a class="lnk" href="../dream/">X Dream Picture →</a></p>`)}`;
+    ${sec(U.aboutH, `<p class="note">${U.about}</p><p><a class="lnk" href="../">${U.tarotLink} →</a></p>`)}`;
   $app.querySelectorAll("[data-use]").forEach(b => b.onclick = () => { activeId = b.dataset.use; store.set("active", activeId); go("today"); });
   $app.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => profileForm(people().find(p => p.id === b.dataset.edit)));
   document.getElementById("add").onclick = () => profileForm(null);
@@ -599,24 +473,23 @@ function reportText(R){
   L.push(`${U.dmH}: ${STEMS[S.dm]} ${T.dm[S.dm][0]} — ${T.dm[S.dm][1]}`, `${T.strength[S.strength][0]}: ${T.strength[S.strength][1]}`);
   L.push(`${U.elH}: ${S.count.map((c, e) => `${elName(e)} ${c}`).join(", ")} · ${U.favH}: ${elName(S.fav.el)}`);
   if (R.pro){ const X = R.pro, G = X.special ? SJ.special[X.special] : SJ.geok[X.geok];
-    L.push(`${SJ.strengthH}: ${SJ.bands[X.band][0]} (${X.score}) · ${SJ.geokH}: ${G[0]}${X.special ? "" : ` (${SJ.geokGrade[X.geokGrade][0]}${X.ok.length ? ", " + X.ok.map(k => SJ.ok[k][0]).join(", ") : ""}${X.bad.length ? ", " + X.bad.map(k => SJ.bad[k][0]).join(", ") : ""})`}`);
+    L.push(`${SJ.strengthH}: ${SJ.bands[X.band][0]} · ${SJ.geokH}: ${G[0]}${X.special ? "" : ` (${SJ.geokGrade[X.geokGrade][0]}${X.ok.length ? ", " + X.ok.map(k => SJ.ok[k][0]).join(", ") : ""}${X.bad.length ? ", " + X.bad.map(k => SJ.bad[k][0]).join(", ") : ""})`}`);
     L.push(`${SJ.roles.yong} ${elName(X.yong)} · ${SJ.roles.hee} ${elName(X.hee)} · ${SJ.roles.gi} ${elName(X.gi)} · ${SJ.roles.gu} ${elName(X.gu)} — ${SJ.method[X.method]}`);
     L.push(`${SJ.elH}: ${X.elPctFull.map((v, e) => `${elName(e)} ${Math.round(v)}%`).join(", ")}`);
     if (X.rels.length) L.push(`${SJ.relH}: ${X.rels.map(r => `${SJ.rel[r.k][0]} ${r.ch}`).join(", ")}`);
     if (X.stars.length) L.push(`${SJ.starH}: ${X.stars.map(st => SJ.star[st.k][0]).join(", ")}`);
-    L.push(`${SJ.spouseH}: ${tgN(X.spouseGod)} · ${SJ.wealthH}: ${SJ.wealth[X.wealthType].split(" — ")[0]}`);
-    if (X.luck.length) L.push(`${SJ.luckH}: ${X.luck.map(l => `${l.age}${LANG === "ko" ? "세" : ""} ${gzStr(l.s, l.b)} ${l.score}`).join(" · ")}`);
-    L.push(`${SJ.yearsH}: ${X.years.map(y => `${y.y} ${gzStr(y.s, y.b)} ${y.score}`).join(" · ")}`);
+    L.push(`${SJ.spouseH}: ${tgN(X.spouseGod)}`);
+    if (X.luck.length) L.push(`${SJ.luckH}: ${X.luck.map(l => `${l.age}${LANG === "ko" ? "세" : ""} ${gzStr(l.s, l.b)}`).join(" · ")}`);
+    L.push(`${SJ.yearsH}: ${X.years.map(y => `${y.y} ${gzStr(y.s, y.b)}`).join(" · ")}`);
   } else if (S.stars.length) L.push(`${U.starsH}: ${S.stars.map(k => T.stars[k][0]).join(", ")}`);
   if (R.curLuck) L.push(`${U.luckCur}: ${gzFull(R.curLuck.s, R.curLuck.b)} (${tgN(R.curLuck.tg)})`);
-  L.push(`${U.sewoon} ${R.year}: ${gzFull(R.yp.s, R.yp.b)} (${tgN(ENG.tenGod(S.dm, R.yp.s))}) — ${T.tg[ENG.tenGod(S.dm, R.yp.s)].y}`);
+  L.push(`${U.sewoon} ${R.year}: ${gzFull(R.yp.s, R.yp.b)} (${tgN(ENG.tenGod(S.dm, R.yp.s))})`);
   L.push("", `■ ${U.westH}`, `${U.sunL} ${signName(W.pl[0].sign)} ${degStr(W.pl[0].deg)} · ${U.moonL} ${signName(W.pl[1].sign)} ${degStr(W.pl[1].deg)}${W.ang ? ` · ${U.ascL} ${signName(Math.floor(W.ang.asc / 30))} ${degStr(W.ang.asc % 30)}` : ""}`);
   L.push(W.pl.slice(2).map(x => `${T.planets[x.n][0]} ${signName(x.sign)} ${degStr(x.deg)}${x.house ? ` (${x.house}H)` : ""}${x.rx && x.n !== "Node" ? " Rx" : ""}`).join(", "));
   L.push(`${U.aspectsH}: ${W.asp.slice(0, 6).map(a => `${T.planets[a.a][0]} ${T.aspects[a.k][0]} ${T.planets[a.b][0]}`).join(", ")}`);
   L.push("", `■ ${U.vedicH}`, `${U.moonRashi} ${T.rashi[V.moonSign]} · ${U.nakH} ${T.naks[V.nak][0]} (${U.pada(V.pada)}) · ${U.maha} ${T.dashaName[V.maha.lord]}${V.antar ? ` / ${U.antar} ${T.dashaName[V.antar.lord]}` : ""}`);
-  L.push("", `■ ${U.zodH}: ${T.animals[R.zod.animal][0]} — ${T.zodRel[R.zod.rel]}${R.zod.samjae ? " " + T.samjae[R.zod.samjae] : ""}`);
-  L.push(`■ ${U.numH}: ${U.lifePath} ${R.num.lp}, ${U.persYear} ${R.num.py}${R.num.expr ? `, ${U.expr} ${R.num.expr}` : ""}`);
-  { const TY = TOJ.year(R, TOJ.currentLunarYear()); L.push(`■ ${TJ.title} ${TJ.lyear(TY.ly)}: ${TY.code} (${TJ.grades[TY.grade]}) — ${TJ.upImg[TY.up]} ${TJ.midImg[TY.mid]} ${TJ.lowImg[TY.low]}`, `${TJ.upCore[TY.up]} ${TJ.yaoText[TY.mid]} ${TJ.lowText[TY.low]}`, TY.months.map(m => `${TJ.monthName(m.m)} ${m.score}`).join(" · ")); }
+  L.push("", `■ ${U.zodH}: ${T.animals[R.zod.animal][0]}${R.zod.samjae ? " " + T.samjae[R.zod.samjae] : ""}`);
+  { const TC = TOJ.code(R.B, TOJ.currentLunarYear()); L.push(`■ ${TJ.title} ${TJ.lyear(TOJ.currentLunarYear())}: ${TC.code}`); }
   L.push("", `※ ${U.disc}`);
   return L.join("\n");
 }

@@ -154,7 +154,7 @@ function analyze(R, now){
   /* --- 용신 --- */
   const season = [4,4,0,0,0,1,1,1,3,3,3,4][P[1].b]; // element of the month's season (子丑 winter … 申酉戌 autumn); 寅卯辰 spring
   const johuNeed = [11,0,1,2].includes(P[1].b) ? 1 : [5,6,7].includes(P[1].b) ? 4 : null;
-  const johuUrgent = johuNeed !== null && elPct[johuNeed] < 6 && !(johuNeed === 1 && dEl === 1) && !(johuNeed === 4 && dEl === 4);
+  const johuUrgent = false; // simplified 조후 override removed; to be replaced by the 궁통보감 10x12 table
   let yong, hee, method;
   if (special){
     const g = {jongA:"output", jongJae:"wealth", jongSal:"officer", jongWang:"companion", jongGang:"resource"}[special];

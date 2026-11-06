@@ -32,13 +32,14 @@ function rel(self, other){
 function grade(s){ return s >= 78 ? 0 : s >= 68 ? 1 : s >= 55 ? 2 : s >= 45 ? 3 : 4; }
 
 function code(B, ly){
-  const age = ly - B.lunarY + 1;
-  const up = mod(age + scNum(ENG.yearPillar(ly).gz), 8) || 8;
+  const age = ly - B.lunarY + 1, tyGz = ENG.yearPillar(ly).gz, tyN = scNum(tyGz);
+  const up = mod(age + tyN, 8) || 8;
   const bm = Math.abs(B.lunarM), lm = LunarMonth.fromYm(ly, bm), days = lm.getDayCount();
-  const mid = mod(days + scNum(Lunar.fromYmd(ly, bm, 1).getMonthInGanZhi()), 6) || 6;
-  const dd = Math.min(B.lunarD, days);
-  const low = mod(B.lunarD + scNum(Lunar.fromYmd(ly, bm, dd).getDayInGanZhi()), 3) || 3;
-  return {up, mid, low, code:up * 100 + mid * 10 + low, age};
+  const mGz = Lunar.fromYmd(ly, bm, 1).getMonthInGanZhi(), mN = scNum(mGz);
+  const mid = mod(days + mN, 6) || 6;
+  const dd = Math.min(B.lunarD, days), dGz = Lunar.fromYmd(ly, bm, dd).getDayInGanZhi(), dN = scNum(dGz);
+  const low = mod(B.lunarD + dN, 3) || 3;
+  return {up, mid, low, code:up * 100 + mid * 10 + low, age, tyGz, tyN, bm, days, mGz, mN, bd:B.lunarD, dGz, dN};
 }
 function month(c, m, yScore){
   const tri = mod(c.up + m - 1, 8) || 8, yao = mod(c.mid + m - 1, 6) || 6;
