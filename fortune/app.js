@@ -48,20 +48,22 @@ function calc(p){
 function active(){ const ps = people(); return ps.find(p => p.id === activeId) || ps[0] || null; }
 
 /* ---------- nav ---------- */
-let tab = "today";
+let tab = (new URLSearchParams(location.search).get("tab") === "pic") ? "pic" : "today";
 const NAV = [
   ["today", '<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>'],
   ["saju", '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/>'],
   ["stars", '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>'],
   ["toj", '<path d="M4 5h16M4 9.5h6.5M13.5 9.5H20M4 14h16M4 18.5h6.5M13.5 18.5H20"/>'],
+  ["pic", '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 16l2.5-3 2 2 3-4 2.5 5"/><circle cx="9.5" cy="8" r="1.4"/>'],
   ["year", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
   ["people", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1.2-3.6 3.6-5.5 6.5-5.5s5.3 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.6c2.6.1 4.5 1.8 5.5 4.8"/>']
 ];
-const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, year:viewYear, people:viewPeople};
+const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, pic:viewPic, year:viewYear, people:viewPeople};
+function viewPic(){ const p = active(); if (!p) return needProfile(); PICTURE.render($app, calc(p), p, LANG, head(LANG === "ko" ? "그림 사주" : "Picture Saju", LANG === "ko" ? "사주를 81장의 인생 카드로 읽습니다" : "Your saju read as 81 life cards"), whoBar(p), bindWho); }
 const TJ = TOJ_TX[LANG], SJ = SJ_TX[LANG];
 const sajuState = {sub:0};
 function renderNav(){
-  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
+  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "pic" ? (LANG === "ko" ? "그림사주" : "Picture") : n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t));
 }
 function go(t){ tab = t; renderNav(); VIEWS[t](); window.scrollTo(0, 0); }
