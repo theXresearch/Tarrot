@@ -1,5 +1,5 @@
-const V = "xdestiny-v9";
-const CORE = ["./","index.html","app.js?v=8","consult.js?v=1","consult_tx.js?v=1","saju_pro.js?v=2","saju_tx.js?v=3","tojeong.js?v=4","engine.js?v=3","cities.js?v=1","text_en.js?v=1","text_ko.js?v=1","vendor/lunar.js?v=1","vendor/astronomy.min.js?v=1","manifest.json","icon-192.png"];
+const V = "xdestiny-v11";
+const CORE = ["./","index.html","app.js?v=10","iching_data.js?v=1","iching.js?v=1","tiaohou.js?v=1","consult.js?v=1","consult_tx.js?v=1","saju_pro.js?v=2","saju_tx.js?v=3","tojeong.js?v=4","engine.js?v=3","cities.js?v=1","text_en.js?v=1","text_ko.js?v=1","vendor/lunar.js?v=1","vendor/astronomy.min.js?v=1","manifest.json","icon-192.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(CORE)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("xdestiny-") && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

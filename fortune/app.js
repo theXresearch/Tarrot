@@ -54,14 +54,15 @@ const NAV = [
   ["saju", '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/>'],
   ["stars", '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>'],
   ["toj", '<path d="M4 5h16M4 9.5h6.5M13.5 9.5H20M4 14h16M4 18.5h6.5M13.5 18.5H20"/>'],
+  ["iching", '<path d="M5 5h14M5 9h5.5M13.5 9H19M5 13h14M5 17h5.5M13.5 17H19M5 21h14" />'],
   ["year", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
   ["people", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1.2-3.6 3.6-5.5 6.5-5.5s5.3 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.6c2.6.1 4.5 1.8 5.5 4.8"/>']
 ];
-const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, year:viewYear, people:viewPeople};
+const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, iching:viewIching, year:viewYear, people:viewPeople};
 const TJ = TOJ_TX[LANG], SJ = SJ_TX[LANG];
 const sajuState = {sub:0};
 function renderNav(){
-  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
+  $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "iching" ? (LANG === "ko" ? "주역" : "I Ching") : n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t));
 }
 function go(t){ tab = t; renderNav(); VIEWS[t](); window.scrollTo(0, 0); }
@@ -157,6 +158,15 @@ function viewSaju(){
       ${sec(SJ.yongH, `<div class="roles">${R5.filter(r => roleEl[r] !== undefined).map(r => `<div class="rl r-${r}"><span>${SJ.roles[r]}</span><b style="color:${EL_COLOR[roleEl[r]]}">${elName(roleEl[r])}</b><small>${T.groups[X.groupOfEl(roleEl[r])]}</small></div>`).join("")}</div>
         <p class="lead">${SJ.method[X.method]}</p>
         ${R5.filter(r => roleEl[r] !== undefined).map(r => `<div class="row2"><b>${SJ.roles[r]} · ${elName(roleEl[r])}</b><p>${SJ.roleText[r]}</p></div>`).join("")}`)}
+      ${(() => { const TH = TIAOHOU.get(dm, S.P[1].b); if (!TH) return "";
+        const K = LANG === "ko", EK = K ? ["목","화","토","금","수"] : ["Wood","Fire","Earth","Metal","Water"];
+        const nm = st => `${T.stemRead[st]}${K ? EK[ENG.STEM_EL[st]] : " " + EK[ENG.STEM_EL[st]]}`;
+        const where = st => { const top = [0,1,2,3].filter(i => S.P[i] && S.P[i].s === st && i !== 2).map(i => pn(i)); const hid = [0,1,2,3].filter(i => S.P[i] && X.hid[i].some(h => h.s === st)).map(i => pn(i));
+          return top.length ? (K ? `천간에 드러남 (${top.join("·")})` : `visible stem (${top.join(", ")})`) : hid.length ? (K ? `지장간에 숨음 (${hid.join("·")})` : `hidden stem (${hid.join(", ")})`) : (K ? "없음" : "absent"); };
+        return sec(K ? "궁통보감 조후 용신" : "Seasonal useful god (Qiongtong Baojian)", `<p class="lead">${TH.use.map(nm).join(" → ")}</p>
+          ${TH.use.map(st => `<div class="row2"><b style="color:${EL_COLOR[ENG.STEM_EL[st]]}">${nm(st)}</b><p>${where(st)}</p></div>`).join("")}
+          <p>${TH.ko}</p><details><summary class="note">${K ? "원문 보기" : "Original text"}</summary><p class="note">${TH.zh}</p></details>
+          <p class="note">${K ? "출처: 『궁통보감』 원문. 억부 용신과 다를 수 있으며, 두 기준을 함께 봅니다." : "Source: Qiongtong Baojian. It may differ from the strength-based useful god; read both."}</p>`); })()}
       ${sec(`${SJ.yongUse} · ${elName(X.yong)}`, `<div class="lucky"><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div>
 `)}`;
   } else if (sub === 2){
@@ -287,6 +297,47 @@ function viewToj(){
     <p class="disc">${U.disc}</p>`;
   bindWho();
   $app.querySelectorAll("[data-yo]").forEach(b => b.onclick = () => { tojState.yOff = +b.dataset.yo; viewToj(); });
+}
+
+/* ---------- I CHING ---------- */
+const iState = {method:"yarrow", manual:[7,8,7,8,7,8], q:"", res:null};
+function hexSVG(vals, useTo){
+  const W = 92, h = 9, gap = 6;
+  return `<svg viewBox="0 0 ${W} ${6 * (h + gap)}" width="${W}" class="hexsvg">${vals.map((v, i) => { const y = (5 - i) * (h + gap);
+    const yang = useTo ? (v === 7 || v === 6) : (v === 7 || v === 9), mv = !useTo && (v === 6 || v === 9);
+    const col = mv ? "#f0d79a" : "currentColor";
+    return (yang ? `<rect x="0" y="${y}" width="${W}" height="${h}" rx="2" fill="${col}"/>` : `<rect x="0" y="${y}" width="${W * 0.42}" height="${h}" rx="2" fill="${col}"/><rect x="${W * 0.58}" y="${y}" width="${W * 0.42}" height="${h}" rx="2" fill="${col}"/>`) +
+      (mv ? `<text x="${W / 2}" y="${y + h - 1}" text-anchor="middle" font-size="${yang ? 9 : 11}" font-weight="700" fill="${yang ? "#1a1530" : "#f0d79a"}">${v === 9 ? "○" : "×"}</text>` : ""); }).join("")}</svg>`;
+}
+function viewIching(){
+  const K = LANG === "ko", st = iState, R = st.res;
+  const VN = K ? {6:"노음 6 (변)", 7:"소양 7", 8:"소음 8", 9:"노양 9 (변)"} : {6:"old yin 6 (moving)", 7:"young yang 7", 8:"young yin 8", 9:"old yang 9 (moving)"};
+  const hexName = H => K ? `${H.ko} (${H.n})` : `${H.n}. ${H.zh_name}`;
+  const txt = t => { const H = t.hex, idx = t.kind === "judgment" ? 0 : t.kind === "use" ? 7 : t.i + 1;
+    const label = t.kind === "judgment" ? (K ? `${H.ko} · 괘사` : `${hexName(H)} · judgment`) : t.kind === "use" ? (K ? `${H.ko} · ${H.n === 1 ? "용구" : "용육"}` : `${hexName(H)} · ${H.n === 1 ? "use nines" : "use sixes"}`) : `${K ? H.ko : hexName(H)} · ${ICHING.lineName(t.i, H.bits[t.i] === "1", K)}`;
+    return `<div class="row2${t.main ? " pos" : ""}"><b>${t.main ? (K ? "● 위주 · " : "● main · ") : ""}${label}</b><p>${H.kt[idx]}</p><details><summary class="note">${K ? "원문" : "Original"}</summary><p class="note">${H.zh[idx]}</p></details></div>`; };
+  let res = "";
+  if (R){
+    res = `<section class="card"><div style="display:flex;gap:22px;justify-content:center;align-items:flex-end;text-align:center">
+        <div>${hexSVG(R.vals)}<p class="lead"><b>${R.B.ko}</b></p><small class="note">${K ? "본괘" : "Primary"} · ${R.B.n} · ${K ? `위 ${R.B.up} / 아래 ${R.B.lo}` : ""}</small></div>
+        ${R.Z ? `<div style="font-size:22px;opacity:.6">→</div><div>${hexSVG(R.vals, true)}<p class="lead"><b>${R.Z.ko}</b></p><small class="note">${K ? "지괘" : "Resulting"} · ${R.Z.n}</small></div>` : ""}</div>
+        <p class="note c">${R.vals.map((v, i) => `${ICHING.lineName(i, v === 7 || v === 9, K)} ${v}`).join(" · ")}</p>
+        ${st.q ? `<p class="c">“${esc(st.q)}”</p>` : ""}</section>
+      ${sec(K ? "읽는 법" : "How to read", `<p>${ICHING.RULE[LANG][R.rule]}</p><p class="note">${K ? "출처" : "Source"}: ${ICHING.SOURCE}</p>`)}
+      ${sec(K ? "점사" : "The text", R.texts.map(txt).join(""))}`;
+  }
+  $app.innerHTML = head(K ? "주역" : "I Ching", K ? "괘를 얻고 주희 『역학계몽』의 법으로 읽습니다" : "Cast a hexagram and read it by Zhu Xi's rules") + `
+    <section class="card"><label class="lbl">${K ? "물음 (선택)" : "Question (optional)"}</label><textarea class="inp" id="iq" rows="2">${esc(st.q)}</textarea>
+      <div class="seg" id="im" style="margin-top:10px">${[["yarrow", K ? "시초법" : "Yarrow"], ["coin", K ? "동전법" : "Coins"], ["manual", K ? "직접 입력" : "Enter lines"]].map(([k, l]) => `<button data-im="${k}"${st.method === k ? ' class="on"' : ""}>${l}</button>`).join("")}</div>
+      ${st.method === "manual" ? `<p class="note">${K ? "아래(초효)부터 위(상효)까지, 실제로 시초나 동전으로 얻은 수를 고르세요." : "From the bottom line up, enter the numbers you obtained."}</p>${[5,4,3,2,1,0].map(i => `<div class="srow"><div style="white-space:nowrap;min-width:64px">${K ? ["초효","2효","3효","4효","5효","상효"][i] : `Line ${i + 1}`}</div><select data-ml="${i}" style="flex:1">${[6,7,8,9].map(v => `<option value="${v}"${st.manual[i] === v ? " selected" : ""}>${VN[v]}</option>`).join("")}</select></div>`).join("")}` :
+        `<p class="note">${st.method === "yarrow" ? (K ? "시초 49책을 네 번 나누어 한 효를 얻는 대연지수법의 확률(노음 1/16 · 소양 5/16 · 소음 7/16 · 노양 3/16)로 여섯 효를 얻습니다." : "Six lines with the probabilities of the yarrow-stalk method (6: 1/16, 7: 5/16, 8: 7/16, 9: 3/16).") : (K ? "동전 셋을 던져 앞면 3, 뒷면 2로 더하는 척전법(6·9 각 1/8, 7·8 각 3/8)으로 여섯 효를 얻습니다." : "Three coins, heads 3 and tails 2 (6 and 9: 1/8 each; 7 and 8: 3/8 each).")}</p>`}
+      <button class="cta" id="icast">${K ? "괘 얻기" : "Cast"}</button></section>
+    ${res}
+    <p class="disc">${U.disc}</p>`;
+  $app.querySelectorAll("[data-im]").forEach(b => b.onclick = () => { st.q = document.getElementById("iq").value; st.method = b.dataset.im; viewIching(); });
+  $app.querySelectorAll("[data-ml]").forEach(sl => sl.onchange = () => { st.manual[+sl.dataset.ml] = +sl.value; });
+  document.getElementById("icast").onclick = () => { st.q = document.getElementById("iq").value.trim();
+    st.res = ICHING.read(st.method === "manual" ? st.manual.slice() : ICHING.cast(st.method)); viewIching(); window.scrollTo(0, 0); };
 }
 
 /* ---------- CONSULTATION ---------- */
