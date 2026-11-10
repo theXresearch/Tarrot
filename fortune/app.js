@@ -112,16 +112,64 @@ function pillarFacts(R, s, b){
     <p class="note">${LANG === "ko" ? "오행 역할" : "Element roles"}: ${STEMS[s]} ${elName(ENG.STEM_EL[s])} → ${roleOf(ENG.STEM_EL[s])} · ${BR[b]} ${elName(ENG.BR_EL[b])} → ${roleOf(ENG.BR_EL[b])}</p>
     ${rel.length ? `<p class="note">${LANG === "ko" ? "원국과의 관계" : "With the natal chart"}: ${rel.join(" · ")}</p>` : ""}`;
 }
+const todState = {mode:"day", sit:"wed", off:0};
+const glossHTML = keys => { const G = GLOSS[LANG === "ko" ? "ko" : "en"], ks = keys.filter(k => G[k]); if (!ks.length) return "";
+  return sec(LANG === "ko" ? "용어 풀이" : "Glossary", ks.map(k => `<details><summary><b>${k}</b></summary><p class="note">${G[k]}</p></details>`).join("")); };
+const WINDK = () => READING.L[LANG === "ko" ? "ko" : "en"].wind;
+const dLabel = d => d.toLocaleDateString(LANG === "ko" ? "ko-KR" : "en-US", {month:"numeric", day:"numeric", weekday:"short"});
+function almRow(o){
+  const K = LANG === "ko", W = WINDK();
+  return `<div class="row2${o.mine ? " neg" : o.good && !o.allBad ? " pos" : ""}"><b>${dLabel(o.date)} · ${STEMS[o.s]}${BR[o.b]} ${K ? `(${"갑을병정무기경신임계"[o.s]}${"자축인묘진사오미신유술해"[o.b]})` : ""}</b>
+    <p class="note">${o.tsK} ${o.tsType === "黄道" ? (K ? "황도일" : "yellow-path") : (K ? "흑도일" : "black-path")} · ${o.zxK}${K ? "일" : ""} · ${o.xiuK}수(${o.xiuLuck === "吉" ? (K ? "길" : "good") : (K ? "흉" : "bad")})${o.wind ? ` · ${W[o.wind]}` : ""}${o.mine ? ` · <b>${K ? "본인 충일" : "your clash day"}</b>` : ""}</p>
+    <p>${o.allBad ? (K ? "모든 일이 마땅치 않은 날" : "Nothing is suitable") : `${K ? "의" : "Do"}: ${o.yiK.slice(0, 6).join(", ")}`}</p></div>`;
+}
 function viewToday(){
   const p = active(); if (!p) return needProfile();
-  const R = calc(p), now = new Date(), D = ENG.daily(R, now), X = R.pro;
-  const E = T.els[X.yong];
-  $app.innerHTML = head(U.todayH, now.toLocaleDateString(LANG === "ko" ? "ko-KR" : "en-US", {weekday:"long", year:"numeric", month:"long", day:"numeric"})) + whoBar(p) + `
-    ${sec(`${LANG === "ko" ? "일진" : "Day pillar"} · ${gzFull(D.d.s, D.d.b)}`, pillarFacts(R, D.d.s, D.d.b))}
-    ${periodHTML(R, D.d.s, D.d.b, READING.L[LANG === "ko" ? "ko" : "en"].period.dayH)}
-    ${sec(`${SJ.roles.yong} · ${elName(X.yong)}`, `<div class="lucky"><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div><p class="note">${LANG === "ko" ? "오행의 오방색·하도수·방위 대응" : "Classical five-element colour, Hetu number and direction"}</p>`)}
-    <p class="disc">${U.disc}</p>`;
+  const R = calc(p), now = new Date(), K = LANG === "ko", st = todState, X = R.pro;
+  const seg = `<div class="seg" id="tmode">${[["day", K ? "오늘" : "Today"], ["week", K ? "이번 주" : "This week"], ["month", K ? "이번 달" : "This month"], ["pick", K ? "택일 (상황별)" : "Date picking"]].map(([k, l]) => `<button data-tm="${k}"${st.mode === k ? ' class="on"' : ""}>${l}</button>`).join("")}</div>`;
+  let body = "";
+  if (st.mode === "day"){
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + st.off), o = ALM.day(d, R), H = ALM.hours(d), E = T.els[X.yong];
+    const chongMe = o.mine ? `<p class="warn">${K ? `오늘의 지지 ${BR[o.b]}가 본인의 ${o.chYear ? "띠(연지)" : ""}${o.chYear && o.chDay ? "·" : ""}${o.chDay ? "일지" : ""}와 충합니다 — 택일에서는 본인과 충하는 날을 피합니다.` : "Today's branch clashes your year or day branch — date selection avoids such days."}</p>` : "";
+    body = `<div class="seg ysel">${[-1, 0, 1].map(k => `<button data-off="${st.off + k}"${k === 0 ? ' class="on"' : ""}>${dLabel(new Date(now.getFullYear(), now.getMonth(), now.getDate() + st.off + k))}</button>`).join("")}</div>
+      ${sec(`${K ? "일진" : "Day pillar"} · ${gzFull(o.s, o.b)} · ${K ? "음력" : "lunar"} ${o.lunar}`, chongMe + pillarFacts(R, o.s, o.b))}
+      ${periodHTML(R, o.s, o.b, READING.L[K ? "ko" : "en"].period.dayH)}
+      ${sec(K ? "통서로 본 이날" : "The almanac for this day", `
+        <div class="lucky"><div><span>${K ? "천신" : "Spirit"}</span><b>${o.tsK} · ${o.tsType === "黄道" ? (K ? "황도" : "yellow") : (K ? "흑도" : "black")}</b></div><div><span>${K ? "건제" : "Officer"}</span><b>${o.zxK}${K ? "일" : ""}</b></div><div><span>${K ? "28수" : "Mansion"}</span><b>${o.xiuK} · ${o.xiuLuck === "吉" ? (K ? "길" : "good") : (K ? "흉" : "bad")}</b></div></div>
+        <div class="row2 pos"><b>${K ? "마땅한 일 (의)" : "Suitable"}</b><p>${o.yiK.join(", ") || "—"}</p></div>
+        <div class="row2 neg"><b>${K ? "꺼리는 일 (기)" : "Avoid"}</b><p>${o.jiK.join(", ") || "—"}</p></div>
+        <div class="row2"><b>${K ? "길신" : "Good spirits"}</b><p>${o.jsK.join(", ") || "—"}</p></div>
+        <div class="row2"><b>${K ? "흉살" : "Bad spirits"}</b><p>${o.xsK.join(", ") || "—"}</p></div>
+        <div class="lucky"><div><span>${K ? "충하는 띠" : "Clashes"}</span><b>${ALM.ANIMAL(o.chongB)}${K ? "띠" : ""}</b></div><div><span>${K ? "살 방위" : "Sha direction"}</span><b>${o.sha}</b></div><div><span>${K ? "구성" : "Star"}</span><b>${o.star}</b></div></div>
+        <div class="lucky"><div><span>${K ? "희신 방위" : "Joy"}</span><b>${o.xi}</b></div><div><span>${K ? "재신 방위" : "Wealth"}</span><b>${o.cai}</b></div><div><span>${K ? "복신 방위" : "Fortune"}</span><b>${o.fu}</b></div></div>
+        <div class="row2"><b>${K ? "팽조백기" : "Peng Zu taboos"}</b><p>${o.pzK.join("<br>")}</p></div>
+        <div class="row2"><b>${K ? `${o.xiuK}수의 노래 (성수가)` : `Verse of the ${o.xiuK} mansion`}</b><p>${o.xiuSongK}</p><details><summary class="note">${K ? "원문" : "Original"}</summary><p class="note">${o.xiuSong}</p></details></div>
+        <p class="note">${K ? "절기" : "Season"}: ${o.houK} (${o.hou})</p>
+        <p class="note">${K ? "근거: 전통 통서(협기변방서 계통)의 택일 항목을 그대로 옮겼습니다." : "Basis: traditional almanac (Xie Ji Bian Fang Shu tradition) entries as given."}</p>`)}
+      ${sec(K ? "시간별 길흉 (12시진)" : "Hours (12 double-hours)", H.map(h => `<div class="row2${h.type === "黄道" ? " pos" : " neg"}"><b>${h.from}–${h.to} · ${h.gz}</b><p class="note">${h.tsK} · ${h.type === "黄道" ? (K ? "황도" : "yellow") : (K ? "흑도" : "black")} · ${K ? "충" : "clash"} ${ALM.ANIMAL(h.chongB)}${(R.saju.P[0].b + 6) % 12 === BR.indexOf(h.gz[1]) || (R.saju.P[2].b + 6) % 12 === BR.indexOf(h.gz[1]) ? (K ? " · 본인 충" : " · clashes you") : ""}</p>${h.yiK.length ? `<p>${K ? "의" : "Do"}: ${h.yiK.join(", ")}</p>` : ""}</div>`).join(""))}
+      ${sec(`${SJ.roles.yong} · ${elName(X.yong)}`, `<div class="lucky"><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div><p class="note">${K ? "오행의 오방색·하도수·방위 대응" : "Classical five-element colour, Hetu number and direction"}</p>`)}
+      ${glossHTML(K ? ["일진","황도일·흑도일","건제12신","28수","의·기","길신·흉살","팽조백기","충일","희신 방위·재신 방위·복신 방위","살 방위","구성","72후","십성","12운성","용신"] : ["Day pillar","Yellow/black path day","Twelve officers","28 mansions","Suitable/avoid","Peng Zu taboos","Clash day","72 pentads","Ten gods","Useful god"])}`;
+  } else if (st.mode === "week" || st.mode === "month"){
+    const days = st.mode === "week" ? 7 : new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const start = st.mode === "week" ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const list = Array.from({length:days}, (_, i) => ALM.day(new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), R));
+    const good = list.filter(o => o.good && !o.mine && !o.allBad).length, mine = list.filter(o => o.mine).length;
+    const m = R.months.find(x => x.m === now.getMonth() + 1);
+    body = (st.mode === "month" && m ? periodHTML(R, m.s, m.b, `${READING.L[K ? "ko" : "en"].period.monthH} · ${gzFull(m.s, m.b)}`) : "")
+      + sec(st.mode === "week" ? (K ? "앞으로 7일" : "Next 7 days") : (K ? `${now.getMonth() + 1}월 전체` : "The whole month"), `<p class="note">${K ? `황도일 ${good}일 · 본인 충일 ${mine}일 (초록 = 황도일, 붉은색 = 본인 충일)` : `${good} yellow-path days · ${mine} clash days`}</p>` + list.map(almRow).join(""))
+      + glossHTML(K ? ["황도일·흑도일","건제12신","28수","의·기","충일"] : ["Yellow/black path day","Twelve officers","28 mansions","Suitable/avoid","Clash day"]);
+  } else {
+    const S = ALM.SIT.find(x => x[0] === st.sit), list = ALM.pick(st.sit, now, 90, R);
+    body = sec(K ? "무엇을 하려 하나요" : "What are you planning?", `<div class="chips">${ALM.SIT.map(x => `<button data-sit="${x[0]}" class="${st.sit === x[0] ? "on" : ""}">${K ? x[1] : x[2]}</button>`).join("")}</div>
+        <p class="note">${K ? `앞으로 90일 중 통서에서 '${S[1]}'에 해당하는 일을 '마땅한 일'로 꼽고 '꺼리는 일'로 꼽지 않은 날입니다. '모든 일이 마땅치 않은 날'과 본인 충일은 뺐습니다. 초록은 황도일입니다.` : `Days in the next 90 where the almanac lists this activity as suitable and not to avoid; days marked 'nothing suitable' and your clash days are excluded. Green = yellow-path day.`}</p>`)
+      + sec(`${K ? S[1] : S[2]} · ${list.length}${K ? "일" : " days"}`, list.length ? list.map(almRow).join("") : `<p>${K ? "해당하는 날이 없습니다." : "No matching days."}</p>`)
+      + glossHTML(K ? ["택일","의·기","황도일·흑도일","충일"] : ["Suitable/avoid","Yellow/black path day","Clash day"]);
+  }
+  $app.innerHTML = head(U.todayH, now.toLocaleDateString(K ? "ko-KR" : "en-US", {weekday:"long", year:"numeric", month:"long", day:"numeric"})) + whoBar(p) + seg + body + `<p class="disc">${U.disc}</p>`;
   bindWho();
+  $app.querySelectorAll("[data-tm]").forEach(b => b.onclick = () => { st.mode = b.dataset.tm; st.off = 0; viewToday(); });
+  $app.querySelectorAll("[data-off]").forEach(b => b.onclick = () => { st.off = +b.dataset.off; viewToday(); });
+  $app.querySelectorAll("[data-sit]").forEach(b => b.onclick = () => { st.sit = b.dataset.sit; viewToday(); });
 }
 
 /* ---------- SAJU ---------- */
@@ -275,6 +323,24 @@ function viewStars(){
   bindWho(); bindReport(R);
 }
 
+const ageState = {dec:-1, open:-1};
+function ageHTML(R){
+  const K = LANG === "ko", S = R.saju, P = S.P, dm = S.dm, by = R.B.y, W = WINDK(), nowAge = new Date().getFullYear() - by + 1;
+  const dec = ageState.dec < 0 ? Math.max(0, Math.floor((nowAge - 1) / 10)) : ageState.dec;
+  const sj = (b, y) => { const g = [0,1,2,3].find(x => [[8,0,4],[5,9,1],[2,6,10],[11,3,7]][x].includes(R.zod.animal)), st = [2,11,8,5][g]; const k = ((y - st) % 12 + 12) % 12; return k < 3 ? (K ? ["들삼재","눌삼재","날삼재"][k] : ["Calamity yr 1","Calamity yr 2","Calamity yr 3"][k]) : ""; };
+  const rows = [];
+  for (let a = dec * 10 + 1; a <= dec * 10 + 10; a++){
+    const y = by + a - 1, yp = ENG.yearPillar(y), Lk = (R.pro.luck || []).find(l => y >= l.y0 && y <= l.y1);
+    const w = READING.windOf(R.pro.roleName([0,0,1,1,2,2,3,3,4,4][yp.s]), R.pro.roleName([4,2,0,0,2,1,1,2,3,3,2,4][yp.b]));
+    const ch = [0,2].filter(i => (P[i].b + 6) % 12 === yp.b).map(i => i === 0 ? (K ? "띠 충" : "year clash") : (K ? "일지 충" : "day clash"));
+    const tags = [W[w], ...ch, sj(yp.b, yp.b)].filter(Boolean);
+    rows.push(`<div class="row2${a === nowAge ? " pos" : ""}${w === "down" || ch.length ? " neg" : ""}" data-age="${a}"><b>${K ? `${a}세` : `Age ${a}`} · ${y} · ${STEMS[yp.s]}${BR[yp.b]}${Lk ? ` <span class="orb">${K ? "대운" : "luck"} ${STEMS[Lk.s]}${BR[Lk.b]}</span>` : ""}</b>
+      <p class="note">${tgN(ENG.tenGod(dm, yp.s))} · ${T.stages[PRO.stage(dm, yp.b)]} · ${tags.join(" · ")}</p>
+      ${ageState.open === a ? READING.period(R, yp.s, yp.b, LANG).lines.map(t => `<p>${t}</p>`).join("") + `<p><b>${READING.period(R, yp.s, yp.b, LANG).verdict}</b></p>` : ""}</div>`);
+  }
+  return sec(K ? "나이별 운의 흐름" : "Year by year, by age", `<div class="chips">${Array.from({length:9}, (_, i) => `<button data-dec="${i}" class="${i === dec ? "on" : ""}">${K ? `${i * 10 + 1}–${i * 10 + 10}세` : `${i * 10 + 1}–${i * 10 + 10}`}</button>`).join("")}</div>
+    <p class="note">${K ? "줄을 누르면 그해의 기운 읽기가 열립니다. 세는나이 기준, 해는 입춘으로 바뀝니다." : "Tap a row to open that year's reading. Korean age; years change at the Start of Spring."}</p>${rows.join("")}`);
+}
 /* ---------- YEAR ---------- */
 function viewYear(){
   const p = active(); if (!p) return needProfile();
@@ -290,11 +356,14 @@ function viewYear(){
     ${sec(U.zodH, `<p class="lead">${U.yourAnimal}: <b>${T.animals[Z.animal][0]}</b> · ${U.zodYear(T.animals[Z.yearBranch][0])}${BRN[Z.rel] ? ` — ${BRN[Z.rel]}` : ""}</p>
       ${Z.samjae ? `<p class="warn">${T.samjae[Z.samjae]}</p>` : ""}
       <div class="lucky"><div><span>${U.bestMatch}</span><b>${Z.best.map(b => T.animals[b][0]).join(", ")}</b></div><div><span>${U.clash}</span><b>${T.animals[Z.worst][0]}</b></div></div>`)}
+    ${ageHTML(R)}
     ${sec(U.transitH, `<p>${U.jupLine(signName(R.transit.jup), jupH, T.houses[jupH - 1])}</p><p>${U.satLine(signName(R.transit.sat), satH, T.houses[satH - 1])}</p>`)}
     ${sec(`${U.nextYear} · ${y + 1}`, pillarFacts(R, R.ypNext.s, R.ypNext.b))}
     ${reportButtons()}
     <p class="disc">${U.disc}</p>`;
   bindWho(); bindReport(R);
+  $app.querySelectorAll("[data-dec]").forEach(b => b.onclick = () => { ageState.dec = +b.dataset.dec; ageState.open = -1; viewYear(); });
+  $app.querySelectorAll("[data-age]").forEach(b => b.onclick = () => { ageState.open = ageState.open === +b.dataset.age ? -1 : +b.dataset.age; const y = window.scrollY; viewYear(); window.scrollTo(0, y); });
 }
 
 /* ---------- TOJEONG ---------- */

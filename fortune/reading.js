@@ -292,5 +292,5 @@ function period(R, s, b, lang){
   const rels = R.saju.P.map((p, i) => p ? (Math.abs(p.b - b) === 6 ? (L[lang] || L.ko).chongAt(PAL[K ? "ko" : "en"][i]) : (((p.b + b) % 12) === 1 ? (L[lang] || L.ko).heAt(PAL[K ? "ko" : "en"][i]) : "")) : "").filter(Boolean);
   return {w, lines:[T.tg(TGK[K ? "ko" : "en"][tg], TGM[K ? "ko" : "en"][tg]), T.role(`${E[SE[s]]}(${R2[rs]})`, `${E[[4,2,0,0,2,1,1,2,3,3,2,4][b]]}(${R2[rb]})`), rels.length ? T.rel(rels.join(" · ")) : T.noRel], verdict:T.verdict[w], H:T};
 }
-return {natal, period, L};
+return {natal, period, L, windOf};
 })();
