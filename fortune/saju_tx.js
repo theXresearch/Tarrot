@@ -1,7 +1,7 @@
 // X Destiny — professional Saju texts (KO written natively, EN written natively)
 const SJ_TX = {
 ko:{
-  sub:["원국","격국·용신","합충·신살","육친·궁위","대운·세운"],
+  sub:["원국","격국·용신","합충·신살","육친·궁위","대운·세운","종합 감정"],
   bands:[["극신약(太弱)","일간의 힘이 매우 약합니다. 스스로 버티기보다 도움을 받아들이는 지혜가 필요하며, 주변 기운을 따르는 것이 오히려 길할 수 있습니다."],
     ["신약(身弱)","일간이 약한 편입니다. 인성(배움·후원)과 비겁(동료·형제)의 도움이 들어올 때 크게 일어섭니다."],
     ["중화(中和)","기운이 비교적 고르게 짜인 사주입니다. 큰 굴곡이 적고, 운의 흐름에 따라 유연하게 대응할 수 있습니다."],
@@ -166,7 +166,7 @@ ko:{
   timeNeed:"출생 시간이 없으면 시주·명궁·자녀궁 분석이 빠집니다.",
   wAll:"전체", pct:p => `${p}%`},
 en:{
-  sub:["Chart","Structure","Interactions","Family","Luck cycles"],
+  sub:["Chart","Structure","Interactions","Family","Luck cycles","Expert reading"],
   bands:[["Extremely weak","The Day Master has very little support. Rather than forcing things alone, accept help — and sometimes going with the dominant current is the lucky path."],
     ["Weak","The Day Master leans weak. You rise when Resource (learning, patrons) and Companion (peers, siblings) energy arrives."],
     ["Balanced","Energies are fairly evenly woven. Fewer extremes, and you can adapt flexibly to whatever the cycles bring."],

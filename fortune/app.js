@@ -60,7 +60,7 @@ const NAV = [
 ];
 const VIEWS = {today:viewToday, saju:viewSaju, stars:viewStars, toj:viewToj, iching:viewIching, year:viewYear, people:viewPeople};
 const TJ = TOJ_TX[LANG], SJ = SJ_TX[LANG];
-const sajuState = {sub:0};
+const sajuState = {sub:5};
 function renderNav(){
   $nav.innerHTML = NAV.map(n => `<button data-t="${n[0]}" class="${tab === n[0] ? "on" : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${n[1]}</svg>${n[0] === "iching" ? (LANG === "ko" ? "주역" : "I Ching") : n[0] === "toj" ? TJ.title : n[0] === "people" ? CT_TX[LANG].nav : U.nav[n[0]]}</button>`).join("");
   $nav.querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.t));
@@ -89,6 +89,19 @@ function ring(score, size, label){
 const bar = (v, max, color) => `<div class="bar"><i style="width:${Math.max(3, v / max * 100)}%;background:${color || "linear-gradient(90deg,#b98f45,#f0d79a)"}"></i></div>`;
 const chip = (txt, color) => `<span class="chip" style="--c:${color}">${txt}</span>`;
 
+function readingHTML(R){
+  const secs = READING.natal(R, LANG, {geokName:k => (SJ.geok[k] || SJ.special[k] || [k])[0], okName:k => (SJ.ok[k] || [k])[0], okText:k => (SJ.ok[k] || ["", ""])[1], badName:k => (SJ.bad[k] || [k])[0], badText:k => (SJ.bad[k] || ["", ""])[1], specialText:k => (SJ.special[k] || ["", ""])[1]});
+  const K = LANG === "ko", B = K ? "근거" : "Basis", O = K ? "원문" : "Original";
+  return secs.map(x => sec(x.h, (x.verse ? `<blockquote class="verse">${x.verse}</blockquote><details><summary class="note">${O}</summary><p class="note">${x.zh}</p></details>` : "")
+    + (x.p || []).map(t => `<p>${t}</p>`).join("")
+    + (!x.verse && x.zh ? `<details><summary class="note">${K ? "『궁통보감』 원문" : "Qiongtong Baojian text"}</summary><p class="note">${x.zh}</p></details>` : "")
+    + (x.luck ? x.luck.map(l => `<div class="row2${l.now ? " pos" : ""}${l.w === "down" || l.w === "downL" ? " neg" : ""}"><b>${l.head}${l.now ? (K ? " · 지금" : " · now") : ""}</b><p class="note">${l.sub}</p><p>${l.tx}</p>${l.rel.length ? `<p class="note">${l.rel.join(" · ")}</p>` : ""}</div>`).join("") : "")
+    + (x.basis ? `<p class="note">${B}: ${x.basis}</p>` : ""))).join("");
+}
+function periodHTML(R, s, b, title){
+  const P = READING.period(R, s, b, LANG);
+  return sec(title, P.lines.map(t => `<p>${t}</p>`).join("") + `<p class="lead"><b>${P.verdict}</b></p><p class="note">${LANG === "ko" ? "근거: 십성의 통설적 의미, 용신·기신 판단(천간 4 : 지지 6), 원국 지지와의 충·합" : "Basis: conventional ten-god meanings, useful/adverse judgement (stem 4 : branch 6), clashes and combinations with natal branches"}</p>`);
+}
 /* ---------- TODAY ---------- */
 const RK = {yong:"yong", hee:"hee", gi:"gi", gu:"gu", han:"han"};
 const BRN = LANG === "ko" ? {liuhe:"육합", sanhe:"반합", chong:"충", hai:"해", same:"같은 지지"} : {liuhe:"six-harmony", sanhe:"half three-harmony", chong:"clash", hai:"harm", same:"same branch"};
@@ -105,6 +118,7 @@ function viewToday(){
   const E = T.els[X.yong];
   $app.innerHTML = head(U.todayH, now.toLocaleDateString(LANG === "ko" ? "ko-KR" : "en-US", {weekday:"long", year:"numeric", month:"long", day:"numeric"})) + whoBar(p) + `
     ${sec(`${LANG === "ko" ? "일진" : "Day pillar"} · ${gzFull(D.d.s, D.d.b)}`, pillarFacts(R, D.d.s, D.d.b))}
+    ${periodHTML(R, D.d.s, D.d.b, READING.L[LANG === "ko" ? "ko" : "en"].period.dayH)}
     ${sec(`${SJ.roles.yong} · ${elName(X.yong)}`, `<div class="lucky"><div><span>${U.luckyColor}</span><b>${E.color}</b></div><div><span>${U.luckyNum}</span><b>${E.nums}</b></div><div><span>${U.luckyDir}</span><b>${E.dir}</b></div></div><p class="note">${LANG === "ko" ? "오행의 오방색·하도수·방위 대응" : "Classical five-element colour, Hetu number and direction"}</p>`)}
     <p class="disc">${U.disc}</p>`;
   bindWho();
@@ -186,6 +200,8 @@ function viewSaju(){
     body = `${sec(SJ.palaceH, pal)}
       ${sec(SJ.spouseH, `<p class="lead"><b>${BR[S.P[2].b]} · ${tgN(X.spouseGod)}</b></p><p>${SJ.spouseGod[X.spouseGod]}</p>${[...new Set(X.dayHit)].map(k => SJ.dayHitText[k] ? `<p class="note">• ${SJ.dayHitText[k]}</p>` : "").join("")}`)}
       ${sec(SJ.kinH, (p.gender ? "" : `<p class="note">${SJ.kinNoGender}</p>`) + kin)}`;
+  } else if (sub === 5){
+    body = readingHTML(R) + reportButtons();
   } else {
     const relLines = rel => rel.map(([k, i]) => SJ.luckRelText(k, pn(i))).filter(Boolean);
     body = sec(SJ.luckH, X.luck.length ? X.luck.map(L => `<div class="lkd${L.now ? " on" : ""}"><div class="lkh"><span class="lkgz"><b style="color:${EL_COLOR[ENG.STEM_EL[L.s]]}">${STEMS[L.s]}</b><b style="color:${EL_COLOR[ENG.BR_EL[L.b]]}">${BR[L.b]}</b></span>
@@ -196,7 +212,7 @@ function viewSaju(){
   }
   $app.innerHTML = head(U.sajuH, `${esc(p.name)} · ${birthLine(p, R)}`) + whoBar(p) + tabs + body + `<p class="disc">${U.disc}</p>`;
   bindWho(); bindReport(R);
-  $app.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sajuState.sub = Math.min(4, +b.dataset.sub); viewSaju(); const t = $app.querySelector(".subtabs .on"); if (t) t.scrollIntoView({inline:"center", block:"nearest"}); });
+  $app.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => { sajuState.sub = Math.min(5, +b.dataset.sub); viewSaju(); const t = $app.querySelector(".subtabs .on"); if (t) t.scrollIntoView({inline:"center", block:"nearest"}); });
 }
 const toHanja = x => x;
 function birthLine(p, R){
@@ -267,6 +283,8 @@ function viewYear(){
   const jupH = ((R.transit.jup - R.west.pl[0].sign + 12) % 12) + 1, satH = ((R.transit.sat - R.west.pl[0].sign + 12) % 12) + 1;
   $app.innerHTML = head(U.yearH(y), esc(p.name)) + whoBar(p) + `
     ${sec(`${U.sewoon} · ${gzFull(yp.s, yp.b)}`, pillarFacts(R, yp.s, yp.b) + (R.curLuck ? `<p class="note">${U.luckCur}: ${gzFull(R.curLuck.s, R.curLuck.b)} · ${tgN(R.curLuck.tg)}</p>` : ""))}
+    ${periodHTML(R, yp.s, yp.b, READING.L[LANG === "ko" ? "ko" : "en"].period.yearH)}
+    ${(() => { const m = R.months.find(x => x.m === nowM); return m ? periodHTML(R, m.s, m.b, `${READING.L[LANG === "ko" ? "ko" : "en"].period.monthH} · ${STEMS[m.s]}${BR[m.b]}`) : ""; })()}
     ${sec(U.monthsH, `<div class="months">${R.months.map(m => `<div class="mo${m.m === nowM ? " on" : ""}"><span>${U.monthName(m.m)}</span><b>${STEMS[m.s]}${BR[m.b]}</b><small>${tgN(m.tg)}</small></div>`).join("")}</div>
       <p class="note">${LANG === "ko" ? "월 기준은 절기(절입일)입니다." : "Months follow the solar terms of the Chinese calendar."}</p>`)}
     ${sec(U.zodH, `<p class="lead">${U.yourAnimal}: <b>${T.animals[Z.animal][0]}</b> · ${U.zodYear(T.animals[Z.yearBranch][0])}${BRN[Z.rel] ? ` — ${BRN[Z.rel]}` : ""}</p>
