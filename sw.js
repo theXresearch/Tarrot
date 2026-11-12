@@ -3,7 +3,7 @@ const VERSION = "xtarot-v11";
 const FILES = ["./", "index.html", "app.js", "cards.js", "spreads.js", "questions.js", "data_en.js", "i18n.js", "manifest.json", "icon-180.png", "icon-192.png", "icon-512.png", "deck.jpg"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))));
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("xtarot") && k !== VERSION).map(k => caches.delete(k)))));
   self.clients.claim();
 });
 // 네트워크 우선 → 실패 시 캐시 (업데이트 즉시 반영 + 오프라인 지원)
